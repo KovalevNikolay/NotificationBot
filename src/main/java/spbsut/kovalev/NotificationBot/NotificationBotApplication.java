@@ -9,5 +9,4 @@ public class NotificationBotApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(NotificationBotApplication.class, args);
 	}
-
 }
