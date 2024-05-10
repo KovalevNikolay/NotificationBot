@@ -12,7 +12,8 @@ import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import spbsut.kovalev.NotificationBot.entity.User;
-import spbsut.kovalev.NotificationBot.interfaces.UserRepository;
+import spbsut.kovalev.NotificationBot.repository.AdminRepository;
+import spbsut.kovalev.NotificationBot.repository.UserRepository;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -24,6 +25,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private AdminRepository adminRepository;
     private final static String BOT_NAME = "NotificationBot";
     private final static String BOT_TOKEN = System.getenv("BOT_TOKEN");
 
@@ -65,7 +68,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void registerUser(Message message) {
-        if (userRepository.findById(message.getChatId()).isEmpty()) {
+        if (userRepository.findById(message.getChatId()).isEmpty() && !adminRepository.findById(message.getChatId()).isEmpty()) {
             var chat = message.getChat();
 
             User user = new User();

@@ -8,20 +8,18 @@ import java.sql.Timestamp;
 
 @Getter
 @Setter
-@Entity(name="users")
-public class User {
+@Entity(name="admin")
+public class Administrator {
 
     @Id
     private long chatId;
     private String firstName;
     private String lastName;
     private String userName;
-    private String bio;
-    private int groupId;
     private Timestamp registeredAt;
 
     @Override
     public String toString() {
-        return STR."User{chatId=\{chatId}, firstName='\{firstName}\{'\''}, lastName='\{lastName}\{'\''}, userName='\{userName}\{'\''}, bio='\{bio}\{'\''}, registeredAt=\{registeredAt}\{'}'}";
+        return STR."Admin{chatId=\{chatId}, firstName='\{firstName}\{'\''}, lastName='\{lastName}\{'\''}, userName='\{userName}\{'\''}, registeredAt=\{registeredAt}\{'}'}";
     }
 }
