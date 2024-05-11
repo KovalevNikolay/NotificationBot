@@ -78,10 +78,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                 case "/readMyData", READ_MY_DATA -> readUserData(chatId);
 
-                case "/deleteMyData", DELETE_MY_DATA -> {
-                    //deleteUserData(chatId);
-                    sendMessage(chatId, "Данные удалены!");
-                }
+                case "/deleteMyData", DELETE_MY_DATA -> //deleteUserData(chatId);
+                        sendMessage(chatId, "Данные удалены!");
                 default -> sendMessage(chatId, "Извините, команда не была распознана");
             }
         } else if (update.hasCallbackQuery()) {
@@ -102,15 +100,19 @@ public class TelegramBot extends TelegramLongPollingBot {
         LocalTime startQuietTime = null;
         LocalTime endQuietTime = null;
 
-        if (callBackData.equals(FIRST_SILENCE_MODE)) {
-            startQuietTime = LocalTime.of(6, 0, 0);
-            endQuietTime = LocalTime.of(12, 0, 0);
-        } else if (callBackData.equals(SECOND_SILENCE_MODE)) {
-            startQuietTime = LocalTime.of(10, 0, 0);
-            endQuietTime = LocalTime.of(20, 0, 0);
-        } else if (callBackData.equals(THIRD_SILENCE_MODE)) {
-            startQuietTime = LocalTime.of(22, 0, 0);
-            endQuietTime = LocalTime.of(8, 0, 0);
+        switch (callBackData) {
+            case FIRST_SILENCE_MODE -> {
+                startQuietTime = LocalTime.of(6, 0, 0);
+                endQuietTime = LocalTime.of(12, 0, 0);
+            }
+            case SECOND_SILENCE_MODE -> {
+                startQuietTime = LocalTime.of(10, 0, 0);
+                endQuietTime = LocalTime.of(20, 0, 0);
+            }
+            case THIRD_SILENCE_MODE -> {
+                startQuietTime = LocalTime.of(22, 0, 0);
+                endQuietTime = LocalTime.of(8, 0, 0);
+            }
         }
 
         if (userRepository.existsById(chatId)) {
@@ -164,7 +166,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         if (userRepository.existsById(chatId)) {
             message.setReplyMarkup(getUserMenuKeyboardMarkup());
-        } else {
+        } else if (adminRepository.existsById(chatId)){
 
         }
         send(message);
