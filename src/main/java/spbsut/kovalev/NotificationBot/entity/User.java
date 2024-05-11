@@ -16,4 +16,9 @@ public class User extends TelegramUser{
     private LocalTime startQuietTime;
     private LocalTime endQuietTime;
     private Timestamp registeredAt;
+
+    @Override
+    public String toString() {
+        return STR."User{chatId=\{chatId}, firstName=\{firstName}, lastName=\{lastName}, userName=\{userName}, bio=\{bio}, silence mode from \{startQuietTime} to \{endQuietTime}, registeredAt=\{registeredAt}, groupId=\{groupId}\{'}'}";
+    }
 }

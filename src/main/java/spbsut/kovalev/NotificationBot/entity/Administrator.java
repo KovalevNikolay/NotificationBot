@@ -6,6 +6,6 @@ import jakarta.persistence.Entity;
 public class Administrator extends TelegramUser {
     @Override
     public String toString() {
-        return STR."Admin{chatId=\{chatId}, firstName='\{firstName}\{'\''}, lastName='\{lastName}\{'\''}, userName='\{userName}\{'\''}, bio='\{bio}\{'\''}\{'}'}";
+        return STR."Administrator{chatId=\{chatId}, firstName=\{firstName}, lastName=\{lastName}, userName=\{userName}, bio=\{bio}\{'}'}";
     }
 }
