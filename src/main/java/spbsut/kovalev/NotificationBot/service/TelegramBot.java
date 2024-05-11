@@ -21,6 +21,7 @@ import spbsut.kovalev.NotificationBot.repository.AdminRepository;
 import spbsut.kovalev.NotificationBot.repository.UserRepository;
 
 import java.sql.Timestamp;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,12 +38,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final static String BOT_TOKEN = System.getenv("BOT_TOKEN");
 
     private final static String SET_SILENCE_MODE = "Настроить режим \"Тишины\"";
-    private final static String DELETE_MY_DATA = ":Удалить мои данные";
+    private final static String DELETE_MY_DATA = "Удалить мои данные";
     private final static String READ_MY_DATA = "Мои данные";
-    private final static String FIRST_SILENCE_MODE = "firstSilenceMode";
-    private final static String SECOND_SILENCE_MODE = "secondSilenceMode";
-    private final static String THIRD_SILENCE_MODE = "thirdSilenceMode";
-    private final static String FOURTH_SILENCE_MODE = "fourthSilenceMode";
+    private final static String FIRST_SILENCE_MODE = "firstSM";
+    private final static String SECOND_SILENCE_MODE = "secondSM";
+    private final static String THIRD_SILENCE_MODE = "thirdSM";
+    private final static String FOURTH_SILENCE_MODE = "fourthSM";
 
     public TelegramBot() {
         super(BOT_TOKEN);
@@ -88,17 +89,46 @@ public class TelegramBot extends TelegramLongPollingBot {
             long chatId = update.getCallbackQuery().getMessage().getChatId();
             int messageId = update.getCallbackQuery().getMessage().getMessageId();
 
+            switch (callBackData) {
+                case FIRST_SILENCE_MODE, SECOND_SILENCE_MODE, THIRD_SILENCE_MODE, FOURTH_SILENCE_MODE ->
+                        setSilenceModeForUser(chatId, callBackData);
+            }
+
+        }
+    }
+
+    private void setSilenceModeForUser(long chatId, String callBackData) {
+
+        LocalTime startQuietTime = null;
+        LocalTime endQuietTime = null;
+
+        if (callBackData.equals(FIRST_SILENCE_MODE)) {
+            startQuietTime = LocalTime.of(6, 0, 0);
+            endQuietTime = LocalTime.of(12, 0, 0);
+        } else if (callBackData.equals(SECOND_SILENCE_MODE)) {
+            startQuietTime = LocalTime.of(10, 0, 0);
+            endQuietTime = LocalTime.of(20, 0, 0);
+        } else if (callBackData.equals(THIRD_SILENCE_MODE)) {
+            startQuietTime = LocalTime.of(22, 0, 0);
+            endQuietTime = LocalTime.of(8, 0, 0);
+        }
+
+        if (userRepository.existsById(chatId)) {
+            User user = userRepository.findById(chatId).get();
+            user.setStartQuietTime(startQuietTime);
+            user.setEndQuietTime(endQuietTime);
+            userRepository.save(user);
         }
     }
 
     private void deleteUserData(long chatId) {
-        if (userRepository.findById(chatId).isPresent()) {
+        if (userRepository.existsById(chatId)) {
             userRepository.deleteById(chatId);
         }
     }
 
     private void readUserData(long chatId) {
-        if (userRepository.findById(chatId).isPresent()) {
+        if (userRepository.existsById(chatId)) {
             User user = userRepository.findById(chatId).get();
             String userData = STR."Мои данные\nИдентификатор: \{user.getChatId()}\nИмя: \{user.getFirstName()}\nФамилия: \{user.getLastName()}\nUsername: \{user.getUserName()}\nБИО: \{user.getBio()}\nГруппа: \{user.getGroupId()}\nНе беспокоить с \{user.getStartQuietTime()} по \{user.getEndQuietTime()}\nДата регистрации: \{user.getRegisteredAt()}";
             sendMessage(chatId, userData);
@@ -106,7 +136,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void registerUser(Message message) {
-        if (userRepository.findById(message.getChatId()).isEmpty() && adminRepository.findById(message.getChatId()).isEmpty()) {
+        if (!userRepository.existsById(message.getChatId()) && !adminRepository.existsById(message.getChatId())) {
             var chat = message.getChat();
 
             User user = new User();
@@ -132,13 +162,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setChatId(chatId);
         message.setText(answer);
 
-        if(adminRepository.findById(chatId).isEmpty()) {
+        if (userRepository.existsById(chatId)) {
             message.setReplyMarkup(getUserMenuKeyboardMarkup());
         } else {
 
         }
         send(message);
-
     }
 
     private void setSilenceModeCommandReceived(long chatId) {
@@ -146,7 +175,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setChatId(chatId);
         message.setText(EmojiParser.parseToUnicode("Настройте режим \"Тишины\" - промежуток времени, когда Вы не будете получать сообщения от бота.\n\n:heavy_exclamation_mark:Время указано в соответствии с Московским временем (MSK).\n\nВыберите наиболее удобный режим: "));
 
-        InlineKeyboardMarkup markup =  new InlineKeyboardMarkup();
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
         List<InlineKeyboardButton> firstLine = new ArrayList<>();
         List<InlineKeyboardButton> secondLine = new ArrayList<>();
