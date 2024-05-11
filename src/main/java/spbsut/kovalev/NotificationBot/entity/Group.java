@@ -10,14 +10,14 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@Entity(name = "user_group")
+@Entity(name = "groupTable")
 public class Group {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int groupId;
 
-    @Column(name = "group_name", unique = true)
+    @Column(name = "groupName", unique = true)
     private String groupName;
     private int countUsers;
 

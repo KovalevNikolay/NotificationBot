@@ -12,7 +12,7 @@ public class MessageTemplate {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int templateId;
-    @Column(name = "message_text", unique = true)
+    @Column(name = "messageText", unique = true)
     private String messageText;
 
     @Override
