@@ -16,6 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMar
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import spbsut.kovalev.NotificationBot.entity.Administrator;
 import spbsut.kovalev.NotificationBot.entity.User;
 import spbsut.kovalev.NotificationBot.repository.AdminRepository;
 import spbsut.kovalev.NotificationBot.repository.UserRepository;
@@ -39,11 +40,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final static String SET_SILENCE_MODE = "Настроить режим \"Тишины\"";
     private final static String DELETE_MY_DATA = "Удалить мои данные";
     private final static String READ_MY_DATA = "Мои данные";
-    private final static String FIRST_MODE = "firstSM";
-    private final static String SECOND_MODE = "secondSM";
-    private final static String THIRD_MODE = "thirdSM";
-    private final static String FOURTH_MODE = "fourthSM";
+    private final static String FIRST_S_M = "FIRST_SILENCE_MODE";
+    private final static String SECOND_S_M = "SECOND_SILENCE_MODE";
+    private final static String THIRD_S_M = "THIRD_SILENCE_MODE";
+    private final static String FOURTH_S_M = "FOURTH_SILENCE_MODE";
     private final static String READ_USER_BUTTON = "READ_USER_BUTTON";
+    private final static String MAKE_AN_ADMIN = "MAKE_AN_ADMIN";
     private final static String USER_GROUPS = "Группы пользователей";
     private final static String ALL_USERS = "Все пользователи";
     private final static String APPOINT_AN_ADMIN = "Назначить администратора";
@@ -58,6 +60,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final static String CREATE_TEMPLATE = "Создать шаблон сообщения";
     private final static String MESSAGE_HISTORY = "История сообщений";
     private final static String BACK_TO_MAIN_MENU = "В главное меню";
+    private final static String COMMAND_NOT_RECOGNIZED = ":warning:Извините, команда не была распознана!:warning:";
+    private final static String LIST_ALL_USERS = ":man_technologist:Список всех пользователей:";
+    private final static String DATA_IS_DELETED = ":x:Данные удалены!:x:";
 
 
     public TelegramBot() {
@@ -86,6 +91,15 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             if (adminRepository.existsById(chatId)) {
 
+                switch (messageText) {
+                    //--- admin command
+                    case USER_GROUPS -> userGroupCommandRecieved(chatId);
+                    case ALL_USERS -> showUsers(chatId, 0, LIST_ALL_USERS, READ_USER_BUTTON);
+                    case BACK_TO_MAIN_MENU -> mainMenu(chatId);
+                    case APPOINT_AN_ADMIN -> showUsers(chatId, 0, LIST_ALL_USERS, MAKE_AN_ADMIN);
+                    default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
+                }
+
             } else {
                 switch (messageText) {
                     case "/start" -> {
@@ -96,16 +110,9 @@ public class TelegramBot extends TelegramLongPollingBot {
                     case "/readMyData", READ_MY_DATA -> readUserData(chatId, chatId);
                     case "/deleteMyData", DELETE_MY_DATA -> {
                         deleteUserData(chatId);
-                        sendMessage(chatId, EmojiParser.parseToUnicode(":x:Данные удалены!:x:"));
+                        sendMessage(chatId, DATA_IS_DELETED);
                     }
-
-                    case USER_GROUPS -> userGroupCommandRecieved(chatId);
-                    case ALL_USERS ->
-                            showUsers(chatId, 0, ":man_technologist:Список всех пользователей:", READ_USER_BUTTON);
-                    case BACK_TO_MAIN_MENU -> mainMenu(chatId);
-
-                    default ->
-                            sendMessage(chatId, EmojiParser.parseToUnicode(":warning:Извините, команда не была распознана!:warning:"));
+                    default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
                 }
             }
         } else if (update.hasCallbackQuery()) {
@@ -113,15 +120,40 @@ public class TelegramBot extends TelegramLongPollingBot {
             long chatId = update.getCallbackQuery().getMessage().getChatId();
             int messageId = update.getCallbackQuery().getMessage().getMessageId();
 
-
-            if (callBackData.equals(FIRST_MODE) || callBackData.equals(SECOND_MODE) || callBackData.equals(THIRD_MODE)) {
+            if (callBackData.equals(FIRST_S_M) || callBackData.equals(SECOND_S_M) || callBackData.equals(THIRD_S_M)) {
                 setSilenceModeForUser(chatId, callBackData);
             } else if (callBackData.contains(READ_USER_BUTTON)) {
-                long userId = Long.parseLong(callBackData.substring(callBackData.indexOf(" ") + 1));
-                readUserData(chatId, userId);
+                long selectedChatId = parseChatIdFromCallBackData(callBackData);
+                readUserData(chatId, selectedChatId);
+            } else if (callBackData.contains(MAKE_AN_ADMIN)) {
+                long selectedChatId = parseChatIdFromCallBackData(callBackData);
+                appointAnAdministrator(selectedChatId);
+                sendMessage(chatId, STR.":heavy_check_mark:Пользователь \{selectedChatId} назначен администратором!");
             }
-
         }
+    }
+
+    private void appointAnAdministrator(long selectedChatId) {
+        if(userRepository.findById(selectedChatId).isPresent() && !adminRepository.existsById(selectedChatId)) {
+            User user = userRepository.findById(selectedChatId).get();
+            Administrator admin = new Administrator();
+
+            admin.setChatId(user.getChatId());
+            admin.setFirstName(user.getFirstName());
+            admin.setLastName(user.getLastName());
+            admin.setUserName(user.getUserName());
+            admin.setBio(user.getBio());
+
+            adminRepository.save(admin);
+            userRepository.deleteById(selectedChatId);
+
+            log.info(STR."Добавлен администратор: \{admin}");
+            log.info(STR."Пользователь удален: \{user}");
+        }
+    }
+
+    private long parseChatIdFromCallBackData(final String callBack) {
+        return Long.parseLong(callBack.substring(callBack.indexOf(" ") + 1));
     }
 
     private void mainMenu(long chatId) {
@@ -169,15 +201,15 @@ public class TelegramBot extends TelegramLongPollingBot {
         LocalTime endQuietTime = null;
 
         switch (callBackData) {
-            case FIRST_MODE -> {
+            case FIRST_S_M -> {
                 startQuietTime = LocalTime.of(6, 0, 0);
                 endQuietTime = LocalTime.of(12, 0, 0);
             }
-            case SECOND_MODE -> {
+            case SECOND_S_M -> {
                 startQuietTime = LocalTime.of(10, 0, 0);
                 endQuietTime = LocalTime.of(20, 0, 0);
             }
-            case THIRD_MODE -> {
+            case THIRD_S_M -> {
                 startQuietTime = LocalTime.of(22, 0, 0);
                 endQuietTime = LocalTime.of(8, 0, 0);
             }
@@ -254,22 +286,22 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<InlineKeyboardButton> fourthLine = new ArrayList<>();
 
         var firstSilenceModeButton = new InlineKeyboardButton();
-        firstSilenceModeButton.setCallbackData(FIRST_MODE);
+        firstSilenceModeButton.setCallbackData(FIRST_S_M);
         firstSilenceModeButton.setText("с 6:00 по 12:00");
         firstLine.add(firstSilenceModeButton);
 
         var secondSilenceModeButton = new InlineKeyboardButton();
-        secondSilenceModeButton.setCallbackData(SECOND_MODE);
+        secondSilenceModeButton.setCallbackData(SECOND_S_M);
         secondSilenceModeButton.setText("с 10:00 по 20:00");
         secondLine.add(secondSilenceModeButton);
 
         var thirdSilenceModeButton = new InlineKeyboardButton();
-        thirdSilenceModeButton.setCallbackData(THIRD_MODE);
+        thirdSilenceModeButton.setCallbackData(THIRD_S_M);
         thirdSilenceModeButton.setText("с 22:00 по 8:00");
         thirdLine.add(thirdSilenceModeButton);
 
         var fourthSilenceModeButton = new InlineKeyboardButton();
-        fourthSilenceModeButton.setCallbackData(FOURTH_MODE);
+        fourthSilenceModeButton.setCallbackData(FOURTH_S_M);
         fourthSilenceModeButton.setText("Получать сообщения всегда!");
         fourthLine.add(fourthSilenceModeButton);
 
@@ -349,7 +381,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void sendMessage(long chatId, String textToSend) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(textToSend);
+        message.setText(EmojiParser.parseToUnicode(textToSend));
         send(message);
         log.info(STR."Бот ответил пользователю: \{chatId}");
     }
