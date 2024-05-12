@@ -85,8 +85,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             long chatId = update.getMessage().getChatId();
 
             if (adminRepository.existsById(chatId)) {
-                switch (messageText) {
-                }
+
             } else {
                 switch (messageText) {
                     case "/start" -> {
@@ -118,7 +117,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             if (callBackData.equals(FIRST_MODE) || callBackData.equals(SECOND_MODE) || callBackData.equals(THIRD_MODE)) {
                 setSilenceModeForUser(chatId, callBackData);
             } else if (callBackData.contains(READ_USER_BUTTON)) {
-                long userId = Long.valueOf(callBackData.substring(callBackData.indexOf(" ") + 1));
+                long userId = Long.parseLong(callBackData.substring(callBackData.indexOf(" ") + 1));
                 readUserData(chatId, userId);
             }
 

@@ -17,7 +17,7 @@ public class Group {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer groupId;
 
-    @Column(name = "groupName", unique = true)
+    @Column(unique = true)
     private String groupName;
     private Integer countUsers;
 
