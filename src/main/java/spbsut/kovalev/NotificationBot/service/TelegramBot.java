@@ -5,12 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
-import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -37,6 +34,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private AdminRepository adminRepository;
     private final static String BOT_NAME = "NotificationBot";
     private final static String BOT_TOKEN = System.getenv("BOT_TOKEN");
+    private final static String START_CMD = "/start";
     private final static String SET_SILENCE_MODE = "Настроить режим \"Тишины\"";
     private final static String DELETE_MY_DATA = "Удалить мои данные";
     private final static String READ_MY_DATA = "Мои данные";
@@ -69,20 +67,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         super(BOT_TOKEN);
     }
 
-    private void initializeBotMenu() {
-        List<BotCommand> commands = new ArrayList<>();
-        commands.add(new BotCommand("/start", "Получить сообщение приветствия"));
-        commands.add(new BotCommand("/setSilenceMode", "Настроить режим тишины"));
-        commands.add(new BotCommand("/readMyData", "Посмотреть свои данные"));
-        commands.add(new BotCommand("/deleteMyData", "Удалить свои данные"));
-
-        try {
-            this.execute(new SetMyCommands(commands, new BotCommandScopeDefault(), null));
-        } catch (TelegramApiException e) {
-            log.error(STR."Ошибка при настройке списка команд бота: \{e.getMessage()}");
-        }
-    }
-
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
@@ -92,7 +76,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             if (adminRepository.existsById(chatId)) {
 
                 switch (messageText) {
-                    //--- admin command
+                    case START_CMD -> startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
                     case USER_GROUPS -> userGroupCommandRecieved(chatId);
                     case ALL_USERS -> showUsers(chatId, 0, LIST_ALL_USERS, READ_USER_BUTTON);
                     case BACK_TO_MAIN_MENU -> mainMenu(chatId);
@@ -102,13 +86,13 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             } else {
                 switch (messageText) {
-                    case "/start" -> {
+                    case START_CMD -> {
                         startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
                         registerUser(update.getMessage());
                     }
-                    case "/setSilenceMode", SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
-                    case "/readMyData", READ_MY_DATA -> readUserData(chatId, chatId);
-                    case "/deleteMyData", DELETE_MY_DATA -> {
+                    case SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
+                    case READ_MY_DATA -> readUserData(chatId, chatId);
+                    case DELETE_MY_DATA -> {
                         deleteUserData(chatId);
                         sendMessage(chatId, DATA_IS_DELETED);
                     }
@@ -263,13 +247,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(answer);
-//        uncomment
-//        if (userRepository.existsById(chatId)) {
-//            message.setReplyMarkup(getUserKeyboardMarkup());
-//        } else if (adminRepository.existsById(chatId)) {
-//            message.setReplyMarkup(getAdminKeyboardMarkup());
-//        }
-        message.setReplyMarkup(getAdminKeyboardMarkup()); // delete
+
+        if (userRepository.existsById(chatId)) {
+            message.setReplyMarkup(getUserKeyboardMarkup());
+        } else if (adminRepository.existsById(chatId)) {
+            message.setReplyMarkup(getAdminKeyboardMarkup());
+        }
+
         send(message);
     }
 
