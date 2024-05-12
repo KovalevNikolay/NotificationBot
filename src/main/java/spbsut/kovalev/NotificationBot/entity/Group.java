@@ -15,11 +15,11 @@ public class Group {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int groupId;
+    private Integer groupId;
 
     @Column(name = "groupName", unique = true)
     private String groupName;
-    private int countUsers;
+    private Integer countUsers;
 
     @Override
     public String toString() {

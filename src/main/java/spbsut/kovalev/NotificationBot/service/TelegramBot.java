@@ -36,14 +36,29 @@ public class TelegramBot extends TelegramLongPollingBot {
     private AdminRepository adminRepository;
     private final static String BOT_NAME = "NotificationBot";
     private final static String BOT_TOKEN = System.getenv("BOT_TOKEN");
-
     private final static String SET_SILENCE_MODE = "Настроить режим \"Тишины\"";
     private final static String DELETE_MY_DATA = "Удалить мои данные";
     private final static String READ_MY_DATA = "Мои данные";
-    private final static String FIRST_SILENCE_MODE = "firstSM";
-    private final static String SECOND_SILENCE_MODE = "secondSM";
-    private final static String THIRD_SILENCE_MODE = "thirdSM";
-    private final static String FOURTH_SILENCE_MODE = "fourthSM";
+    private final static String FIRST_MODE = "firstSM";
+    private final static String SECOND_MODE = "secondSM";
+    private final static String THIRD_MODE = "thirdSM";
+    private final static String FOURTH_MODE = "fourthSM";
+    private final static String READ_USER_BUTTON = "READ_USER_BUTTON";
+    private final static String USER_GROUPS = "Группы пользователей";
+    private final static String ALL_USERS = "Все пользователи";
+    private final static String APPOINT_AN_ADMIN = "Назначить администратора";
+    private final static String READ_USER_DATA = "Показать данные пользователя";
+    private final static String ADD_USER_TO_GROUP = "Добавить пользователя в группу";
+    private final static String REMOVE_USER_FROM_GROUP = "Удалить пользователя из группы";
+    private final static String SHOW_GROUP_USERS = "Показать пользователей";
+    private final static String CREATE_GROUP = "Создать группу";
+    private final static String EDIT_GROUP = "Изменить группу";
+    private final static String REMOVE_GROUP = "Удалить группу";
+    private final static String SEND_MESSAGE = "Отправить сообщение";
+    private final static String CREATE_TEMPLATE = "Создать шаблон сообщения";
+    private final static String MESSAGE_HISTORY = "История сообщений";
+    private final static String BACK_TO_MAIN_MENU = "В главное меню";
+
 
     public TelegramBot() {
         super(BOT_TOKEN);
@@ -69,30 +84,84 @@ public class TelegramBot extends TelegramLongPollingBot {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
 
-            switch (messageText) {
-                case "/start" -> {
-                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                    registerUser(update.getMessage());
+            if (adminRepository.existsById(chatId)) {
+                switch (messageText) {
                 }
-                case "/setSilenceMode", SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
+            } else {
+                switch (messageText) {
+                    case "/start" -> {
+                        startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                        registerUser(update.getMessage());
+                    }
+                    case "/setSilenceMode", SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
+                    case "/readMyData", READ_MY_DATA -> readUserData(chatId, chatId);
+                    case "/deleteMyData", DELETE_MY_DATA -> {
+                        deleteUserData(chatId);
+                        sendMessage(chatId, EmojiParser.parseToUnicode(":x:Данные удалены!:x:"));
+                    }
 
-                case "/readMyData", READ_MY_DATA -> readUserData(chatId);
+                    case USER_GROUPS -> userGroupCommandRecieved(chatId);
+                    case ALL_USERS ->
+                            showUsers(chatId, 0, ":man_technologist:Список всех пользователей:", READ_USER_BUTTON);
+                    case BACK_TO_MAIN_MENU -> mainMenu(chatId);
 
-                case "/deleteMyData", DELETE_MY_DATA -> //deleteUserData(chatId);
-                        sendMessage(chatId, "Данные удалены!");
-                default -> sendMessage(chatId, "Извините, команда не была распознана");
+                    default ->
+                            sendMessage(chatId, EmojiParser.parseToUnicode(":warning:Извините, команда не была распознана!:warning:"));
+                }
             }
         } else if (update.hasCallbackQuery()) {
             String callBackData = update.getCallbackQuery().getData();
             long chatId = update.getCallbackQuery().getMessage().getChatId();
             int messageId = update.getCallbackQuery().getMessage().getMessageId();
 
-            switch (callBackData) {
-                case FIRST_SILENCE_MODE, SECOND_SILENCE_MODE, THIRD_SILENCE_MODE, FOURTH_SILENCE_MODE ->
-                        setSilenceModeForUser(chatId, callBackData);
+
+            if (callBackData.equals(FIRST_MODE) || callBackData.equals(SECOND_MODE) || callBackData.equals(THIRD_MODE)) {
+                setSilenceModeForUser(chatId, callBackData);
+            } else if (callBackData.contains(READ_USER_BUTTON)) {
+                long userId = Long.valueOf(callBackData.substring(callBackData.indexOf(" ") + 1));
+                readUserData(chatId, userId);
             }
 
         }
+    }
+
+    private void mainMenu(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Главное меню");
+        message.setReplyMarkup(getAdminKeyboardMarkup());
+        send(message);
+    }
+
+    private void showUsers(long chatId, int groupId, String messageText, String callbackData) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(EmojiParser.parseToUnicode(messageText));
+
+        Iterable<User> users = groupId > 0 ? userRepository.findByGroupId(groupId) : userRepository.findAll();
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
+
+        for (User user : users) {
+            List<InlineKeyboardButton> line = new ArrayList<>();
+            var userButton = new InlineKeyboardButton();
+            userButton.setText(STR."\{user.getChatId()} \{user.getUserName()}");
+            userButton.setCallbackData(STR."\{callbackData} \{user.getChatId()}");
+            line.add(userButton);
+            rowsInLine.add(line);
+        }
+        markup.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markup);
+        send(message);
+    }
+
+    private void userGroupCommandRecieved(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Вы перешли в меню управления группами пользователей!");
+        message.setReplyMarkup(getGroupMenu());
+        send(message);
     }
 
     private void setSilenceModeForUser(long chatId, String callBackData) {
@@ -101,21 +170,21 @@ public class TelegramBot extends TelegramLongPollingBot {
         LocalTime endQuietTime = null;
 
         switch (callBackData) {
-            case FIRST_SILENCE_MODE -> {
+            case FIRST_MODE -> {
                 startQuietTime = LocalTime.of(6, 0, 0);
                 endQuietTime = LocalTime.of(12, 0, 0);
             }
-            case SECOND_SILENCE_MODE -> {
+            case SECOND_MODE -> {
                 startQuietTime = LocalTime.of(10, 0, 0);
                 endQuietTime = LocalTime.of(20, 0, 0);
             }
-            case THIRD_SILENCE_MODE -> {
+            case THIRD_MODE -> {
                 startQuietTime = LocalTime.of(22, 0, 0);
                 endQuietTime = LocalTime.of(8, 0, 0);
             }
         }
 
-        if (userRepository.existsById(chatId)) {
+        if (userRepository.findById(chatId).isPresent()) {
             User user = userRepository.findById(chatId).get();
             user.setStartQuietTime(startQuietTime);
             user.setEndQuietTime(endQuietTime);
@@ -129,10 +198,10 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void readUserData(long chatId) {
-        if (userRepository.existsById(chatId)) {
-            User user = userRepository.findById(chatId).get();
-            String userData = STR."Мои данные\nИдентификатор: \{user.getChatId()}\nИмя: \{user.getFirstName()}\nФамилия: \{user.getLastName()}\nUsername: \{user.getUserName()}\nБИО: \{user.getBio()}\nГруппа: \{user.getGroupId()}\nНе беспокоить с \{user.getStartQuietTime()} по \{user.getEndQuietTime()}\nДата регистрации: \{user.getRegisteredAt()}";
+    private void readUserData(long chatId, long userDataId) {
+        if (userRepository.findById(userDataId).isPresent()) {
+            User user = userRepository.findById(userDataId).get();
+            String userData = STR."Идентификатор: \{user.getChatId()}\nИмя: \{user.getFirstName()}\nФамилия: \{user.getLastName()}\nUsername: \{user.getUserName()}\nБИО: \{user.getBio()}\nГруппа: \{user.getGroupId()}\nНе беспокоить с \{user.getStartQuietTime()} по \{user.getEndQuietTime()}\nДата регистрации: \{user.getRegisteredAt()}";
             sendMessage(chatId, userData);
         }
     }
@@ -148,7 +217,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             user.setUserName(chat.getUserName());
             user.setBio(chat.getBio());
             user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
-            user.setGroupId(0);
+            user.setGroupId(null);
             user.setStartQuietTime(null);
             user.setEndQuietTime(null);
 
@@ -163,12 +232,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(answer);
-
-        if (userRepository.existsById(chatId)) {
-            message.setReplyMarkup(getUserMenuKeyboardMarkup());
-        } else if (adminRepository.existsById(chatId)){
-
-        }
+//        uncomment
+//        if (userRepository.existsById(chatId)) {
+//            message.setReplyMarkup(getUserKeyboardMarkup());
+//        } else if (adminRepository.existsById(chatId)) {
+//            message.setReplyMarkup(getAdminKeyboardMarkup());
+//        }
+        message.setReplyMarkup(getAdminKeyboardMarkup()); // delete
         send(message);
     }
 
@@ -185,22 +255,22 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<InlineKeyboardButton> fourthLine = new ArrayList<>();
 
         var firstSilenceModeButton = new InlineKeyboardButton();
-        firstSilenceModeButton.setCallbackData(FIRST_SILENCE_MODE);
+        firstSilenceModeButton.setCallbackData(FIRST_MODE);
         firstSilenceModeButton.setText("с 6:00 по 12:00");
         firstLine.add(firstSilenceModeButton);
 
         var secondSilenceModeButton = new InlineKeyboardButton();
-        secondSilenceModeButton.setCallbackData(SECOND_SILENCE_MODE);
+        secondSilenceModeButton.setCallbackData(SECOND_MODE);
         secondSilenceModeButton.setText("с 10:00 по 20:00");
         secondLine.add(secondSilenceModeButton);
 
         var thirdSilenceModeButton = new InlineKeyboardButton();
-        thirdSilenceModeButton.setCallbackData(THIRD_SILENCE_MODE);
+        thirdSilenceModeButton.setCallbackData(THIRD_MODE);
         thirdSilenceModeButton.setText("с 22:00 по 8:00");
         thirdLine.add(thirdSilenceModeButton);
 
         var fourthSilenceModeButton = new InlineKeyboardButton();
-        fourthSilenceModeButton.setCallbackData(FOURTH_SILENCE_MODE);
+        fourthSilenceModeButton.setCallbackData(FOURTH_MODE);
         fourthSilenceModeButton.setText("Получать сообщения всегда!");
         fourthLine.add(fourthSilenceModeButton);
 
@@ -213,7 +283,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         send(message);
     }
 
-    private ReplyKeyboardMarkup getUserMenuKeyboardMarkup() {
+    private ReplyKeyboardMarkup getUserKeyboardMarkup() {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboardRows = new ArrayList<>();
 
@@ -224,6 +294,52 @@ public class TelegramBot extends TelegramLongPollingBot {
         row = new KeyboardRow();
         row.add(EmojiParser.parseToUnicode(READ_MY_DATA));
         row.add(EmojiParser.parseToUnicode(DELETE_MY_DATA));
+        keyboardRows.add(row);
+
+        keyboardMarkup.setKeyboard(keyboardRows);
+
+        return keyboardMarkup;
+    }
+
+    private ReplyKeyboardMarkup getAdminKeyboardMarkup() {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(CREATE_TEMPLATE);
+        row.add(SEND_MESSAGE);
+        row.add(MESSAGE_HISTORY);
+        keyboardRows.add(row);
+
+        row = new KeyboardRow();
+        row.add(ALL_USERS);
+        row.add(USER_GROUPS);
+        row.add(APPOINT_AN_ADMIN);
+        keyboardRows.add(row);
+
+        keyboardMarkup.setKeyboard(keyboardRows);
+
+        return keyboardMarkup;
+    }
+
+    private ReplyKeyboardMarkup getGroupMenu() {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(CREATE_GROUP);
+        row.add(EDIT_GROUP);
+        row.add(REMOVE_GROUP);
+        keyboardRows.add(row);
+
+        row = new KeyboardRow();
+        row.add(ADD_USER_TO_GROUP);
+        row.add(SHOW_GROUP_USERS);
+        row.add(REMOVE_USER_FROM_GROUP);
+        keyboardRows.add(row);
+
+        row = new KeyboardRow();
+        row.add(BACK_TO_MAIN_MENU);
         keyboardRows.add(row);
 
         keyboardMarkup.setKeyboard(keyboardRows);
@@ -252,5 +368,3 @@ public class TelegramBot extends TelegramLongPollingBot {
         return BOT_NAME;
     }
 }
-
-

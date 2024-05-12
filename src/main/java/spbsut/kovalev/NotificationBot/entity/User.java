@@ -12,7 +12,7 @@ import java.time.LocalTime;
 @Entity(name="users")
 public class User extends TelegramUser{
 
-    private int groupId;
+    private Integer groupId;
     private LocalTime startQuietTime;
     private LocalTime endQuietTime;
     private Timestamp registeredAt;

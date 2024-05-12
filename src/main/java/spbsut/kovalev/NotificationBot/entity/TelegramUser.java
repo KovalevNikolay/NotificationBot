@@ -10,7 +10,7 @@ import lombok.Setter;
 @MappedSuperclass
 public class TelegramUser {
     @Id
-    protected long chatId;
+    protected Long chatId;
     protected String firstName;
     protected String lastName;
     protected String userName;

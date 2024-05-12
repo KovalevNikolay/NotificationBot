@@ -15,10 +15,10 @@ public class Message {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int messageId;
+    private Integer messageId;
     private String messageText;
     private Timestamp timeSending;
-    private long senderId;
+    private Long senderId;
 
     @Override
     public String toString() {
