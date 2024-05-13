@@ -5,14 +5,18 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 @Entity(name="template")
 public class MessageTemplate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer templateId;
-    @Column(unique = true)
+    @Column(unique = true, length = 4000)
     private String messageText;
 
     @Override

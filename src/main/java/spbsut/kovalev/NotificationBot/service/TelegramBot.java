@@ -14,8 +14,12 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import spbsut.kovalev.NotificationBot.entity.Administrator;
+import spbsut.kovalev.NotificationBot.entity.Group;
+import spbsut.kovalev.NotificationBot.entity.MessageTemplate;
 import spbsut.kovalev.NotificationBot.entity.User;
 import spbsut.kovalev.NotificationBot.repository.AdminRepository;
+import spbsut.kovalev.NotificationBot.repository.GroupRepository;
+import spbsut.kovalev.NotificationBot.repository.TemplateRepository;
 import spbsut.kovalev.NotificationBot.repository.UserRepository;
 
 import java.sql.Timestamp;
@@ -29,12 +33,16 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Autowired
     private UserRepository userRepository;
-
     @Autowired
     private AdminRepository adminRepository;
+    @Autowired
+    private GroupRepository groupRepository;
+    @Autowired
+    private TemplateRepository templateRepository;
     private final static String BOT_NAME = "NotificationBot";
     private final static String BOT_TOKEN = System.getenv("BOT_TOKEN");
     private final static String START_CMD = "/start";
+    private final static String CREATE_GROUP_CMD = "/createGroup";
     private final static String SET_SILENCE_MODE = "Настроить режим \"Тишины\"";
     private final static String DELETE_MY_DATA = "Удалить мои данные";
     private final static String READ_MY_DATA = "Мои данные";
@@ -47,7 +55,6 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final static String USER_GROUPS = "Группы пользователей";
     private final static String ALL_USERS = "Все пользователи";
     private final static String APPOINT_AN_ADMIN = "Назначить администратора";
-    private final static String READ_USER_DATA = "Показать данные пользователя";
     private final static String ADD_USER_TO_GROUP = "Добавить пользователя в группу";
     private final static String REMOVE_USER_FROM_GROUP = "Удалить пользователя из группы";
     private final static String SHOW_GROUP_USERS = "Показать пользователей";
@@ -56,11 +63,17 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final static String REMOVE_GROUP = "Удалить группу";
     private final static String SEND_MESSAGE = "Отправить сообщение";
     private final static String CREATE_TEMPLATE = "Создать шаблон сообщения";
+    private final static String CREATE_TEMPLATE_CMD = "/createTemplate";
     private final static String MESSAGE_HISTORY = "История сообщений";
     private final static String BACK_TO_MAIN_MENU = "В главное меню";
     private final static String COMMAND_NOT_RECOGNIZED = ":warning:Извините, команда не была распознана!:warning:";
     private final static String LIST_ALL_USERS = ":man_technologist:Список всех пользователей:";
+    private final static String CREATE_GROUP_INFO = STR."Для того, чтобы создать новую группу введите команду \{CREATE_GROUP_CMD} и название группы.\nНапример, \"\{CREATE_GROUP_CMD} Моя Группа \" .";
+    private final static String CREATE_TEMPLATE_INFO = STR."Для того, чтобы создать шаблон сообщения введите команду \{CREATE_TEMPLATE_CMD} и текст сообщения.\nНапример, \"\{CREATE_TEMPLATE_CMD} текст сообщения \" .";
     private final static String DATA_IS_DELETED = ":x:Данные удалены!:x:";
+    private final static String GROUP_WAS_NOT_CREATED = ":x:Группа с таким именем уже существует!:x:";
+    private final static String TEMPLATE_CREATED = ":heavy_check_mark: Шаблон сообщения создан!";
+    private final static String TEMPLATE_WAS_NOT_CREATED = ":x:Шаблон с таким сообщением уже существует!:x:";
 
 
     public TelegramBot() {
@@ -74,14 +87,25 @@ public class TelegramBot extends TelegramLongPollingBot {
             long chatId = update.getMessage().getChatId();
 
             if (adminRepository.existsById(chatId)) {
-
-                switch (messageText) {
-                    case START_CMD -> startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                    case USER_GROUPS -> userGroupCommandRecieved(chatId);
-                    case ALL_USERS -> showUsers(chatId, 0, LIST_ALL_USERS, READ_USER_BUTTON);
-                    case BACK_TO_MAIN_MENU -> mainMenu(chatId);
-                    case APPOINT_AN_ADMIN -> showUsers(chatId, 0, LIST_ALL_USERS, MAKE_AN_ADMIN);
-                    default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
+                if (messageText.contains(CREATE_GROUP_CMD)) {
+                    String groupName = parseTextFromMessage(messageText);
+                    String resultMessage = createGroup(groupName) ? STR.":heavy_check_mark: Группа \{groupName} создана!" : GROUP_WAS_NOT_CREATED;
+                    sendMessage(chatId, resultMessage);
+                } else if (messageText.contains(CREATE_TEMPLATE_CMD)) {
+                    String templateMessage = parseTextFromMessage(messageText);
+                    String resultMessage = createTemplateMessage(templateMessage) ? TEMPLATE_CREATED : TEMPLATE_WAS_NOT_CREATED;
+                    sendMessage(chatId, resultMessage);
+                } else {
+                    switch (messageText) {
+                        case START_CMD -> startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                        case USER_GROUPS -> userGroupCommandRecieved(chatId);
+                        case ALL_USERS -> showUsers(chatId, 0, LIST_ALL_USERS, READ_USER_BUTTON);
+                        case BACK_TO_MAIN_MENU -> mainMenu(chatId);
+                        case APPOINT_AN_ADMIN -> showUsers(chatId, 0, LIST_ALL_USERS, MAKE_AN_ADMIN);
+                        case CREATE_GROUP -> sendMessage(chatId, CREATE_GROUP_INFO);
+                        case CREATE_TEMPLATE -> sendMessage(chatId,CREATE_TEMPLATE_INFO);
+                        default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
+                    }
                 }
 
             } else {
@@ -115,6 +139,31 @@ public class TelegramBot extends TelegramLongPollingBot {
                 sendMessage(chatId, STR.":heavy_check_mark:Пользователь \{selectedChatId} назначен администратором!");
             }
         }
+    }
+
+    private boolean createTemplateMessage(String templateMessage) {
+        if(!templateRepository.findByMessageText(templateMessage).isPresent()) {
+            MessageTemplate template = new MessageTemplate();
+            template.setMessageText(templateMessage);
+            templateRepository.save(template);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean createGroup(String groupName) {
+        if(!groupRepository.findByGroupName(groupName).isPresent()) {
+            Group group = new Group();
+            group.setGroupName(groupName);
+            group.setCountUsers(0);
+            groupRepository.save(group);
+            return true;
+        }
+        return false;
+    }
+
+    private String parseTextFromMessage(String messageText) {
+        return messageText.substring(messageText.indexOf(" ") + 1);
     }
 
     private void appointAnAdministrator(long selectedChatId) {
