@@ -11,7 +11,6 @@ import java.time.LocalTime;
 @Setter
 @Entity(name="users")
 public class User extends TelegramUser{
-
     private Integer groupId;
     private LocalTime startQuietTime;
     private LocalTime endQuietTime;

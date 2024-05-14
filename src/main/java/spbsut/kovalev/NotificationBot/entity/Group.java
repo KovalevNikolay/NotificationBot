@@ -12,7 +12,6 @@ import lombok.Setter;
 @Setter
 @Entity(name = "groupTable")
 public class Group {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer groupId;

@@ -12,7 +12,6 @@ import java.sql.Timestamp;
 @Setter
 @Entity(name="message")
 public class Message {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer messageId;

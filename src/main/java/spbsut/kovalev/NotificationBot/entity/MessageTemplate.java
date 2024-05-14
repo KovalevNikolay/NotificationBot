@@ -12,10 +12,10 @@ import lombok.Setter;
 @Setter
 @Entity(name="template")
 public class MessageTemplate {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer templateId;
+
     @Column(unique = true, length = 4000)
     private String messageText;
 

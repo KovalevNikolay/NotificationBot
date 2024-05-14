@@ -87,7 +87,21 @@ public class TelegramBot extends TelegramLongPollingBot {
             long chatId = update.getMessage().getChatId();
 
             if (adminRepository.existsById(chatId)) {
-                if (messageText.contains(CREATE_GROUP_CMD)) {
+                if (messageText.equals(START_CMD)) {
+                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                } else if (messageText.equals(USER_GROUPS)) {
+                    userGroupCommandRecieved(chatId);
+                } else if (messageText.equals(ALL_USERS)) {
+                    showUsers(chatId, 0, LIST_ALL_USERS, READ_USER_BUTTON);
+                } else if (messageText.equals(BACK_TO_MAIN_MENU)) {
+                    mainMenu(chatId);
+                } else if (messageText.equals(APPOINT_AN_ADMIN)) {
+                    showUsers(chatId, 0, LIST_ALL_USERS, MAKE_AN_ADMIN);
+                } else if (messageText.equals(CREATE_GROUP)) {
+                    sendMessage(chatId, CREATE_GROUP_INFO);
+                } else if (messageText.equals(CREATE_TEMPLATE)) {
+                    sendMessage(chatId, CREATE_TEMPLATE_INFO);
+                } else if (messageText.contains(CREATE_GROUP_CMD)) {
                     String groupName = parseTextFromMessage(messageText);
                     String resultMessage = createGroup(groupName) ? STR.":heavy_check_mark: Группа \{groupName} создана!" : GROUP_WAS_NOT_CREATED;
                     sendMessage(chatId, resultMessage);
@@ -96,18 +110,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                     String resultMessage = createTemplateMessage(templateMessage) ? TEMPLATE_CREATED : TEMPLATE_WAS_NOT_CREATED;
                     sendMessage(chatId, resultMessage);
                 } else {
-                    switch (messageText) {
-                        case START_CMD -> startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                        case USER_GROUPS -> userGroupCommandRecieved(chatId);
-                        case ALL_USERS -> showUsers(chatId, 0, LIST_ALL_USERS, READ_USER_BUTTON);
-                        case BACK_TO_MAIN_MENU -> mainMenu(chatId);
-                        case APPOINT_AN_ADMIN -> showUsers(chatId, 0, LIST_ALL_USERS, MAKE_AN_ADMIN);
-                        case CREATE_GROUP -> sendMessage(chatId, CREATE_GROUP_INFO);
-                        case CREATE_TEMPLATE -> sendMessage(chatId,CREATE_TEMPLATE_INFO);
-                        default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
-                    }
+                    sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
                 }
-
             } else {
                 switch (messageText) {
                     case START_CMD -> {
@@ -142,7 +146,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private boolean createTemplateMessage(String templateMessage) {
-        if(!templateRepository.findByMessageText(templateMessage).isPresent()) {
+        if (templateRepository.findByMessageText(templateMessage).isEmpty()) {
             MessageTemplate template = new MessageTemplate();
             template.setMessageText(templateMessage);
             templateRepository.save(template);
@@ -152,7 +156,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private boolean createGroup(String groupName) {
-        if(!groupRepository.findByGroupName(groupName).isPresent()) {
+        if (groupRepository.findByGroupName(groupName).isEmpty()) {
             Group group = new Group();
             group.setGroupName(groupName);
             group.setCountUsers(0);
@@ -167,7 +171,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void appointAnAdministrator(long selectedChatId) {
-        if(userRepository.findById(selectedChatId).isPresent() && !adminRepository.existsById(selectedChatId)) {
+        if (userRepository.findById(selectedChatId).isPresent() && !adminRepository.existsById(selectedChatId)) {
             User user = userRepository.findById(selectedChatId).get();
             Administrator admin = new Administrator();
 

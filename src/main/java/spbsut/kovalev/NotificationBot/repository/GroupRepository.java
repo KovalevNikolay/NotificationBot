@@ -3,7 +3,6 @@ package spbsut.kovalev.NotificationBot.repository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import spbsut.kovalev.NotificationBot.entity.Group;
-
 import java.util.Optional;
 
 public interface GroupRepository extends CrudRepository<Group, Integer> {
