@@ -17,10 +17,7 @@ import spbsut.kovalev.NotificationBot.entity.Administrator;
 import spbsut.kovalev.NotificationBot.entity.Group;
 import spbsut.kovalev.NotificationBot.entity.MessageTemplate;
 import spbsut.kovalev.NotificationBot.entity.User;
-import spbsut.kovalev.NotificationBot.repository.AdminRepository;
-import spbsut.kovalev.NotificationBot.repository.GroupRepository;
-import spbsut.kovalev.NotificationBot.repository.TemplateRepository;
-import spbsut.kovalev.NotificationBot.repository.UserRepository;
+import spbsut.kovalev.NotificationBot.repository.*;
 
 import java.sql.Timestamp;
 import java.time.LocalTime;
@@ -39,6 +36,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     private GroupRepository groupRepository;
     @Autowired
     private TemplateRepository templateRepository;
+    @Autowired
+    private MessageRepository messageRepository;
     private final static String BOT_NAME = "NotificationBot";
     private final static String BOT_TOKEN = System.getenv("BOT_TOKEN");
     private final static String START_CMD = "/start";
@@ -62,26 +61,39 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final static String READ_USERS_FROM_GROUP = "Показать пользователей";
     private final static String LIST_GROUP_USERS = ":sparkle:Список пользователей группы:sparkle:";
     private final static String CREATE_GROUP = "Создать группу";
-    private final static String EDIT_GROUP = "Изменить группу";
+    private final static String EDIT_GROUP_NAME = "Изменить группу";
     private final static String DELETE_GROUP = "Удалить группу";
     private final static String SEND_MESSAGE = "Отправить сообщение";
+    private static final String CREATE_MESSAGE = "Новое сообщение";
+    private static final String USE_TEMPLATE_MESSAGE = "Использовать шаблон";
     private final static String CREATE_TEMPLATE = "Создать шаблон сообщения";
     private final static String CREATE_TEMPLATE_CMD = "/createTemplate";
+    private static final String TEMPLATE_BUTTON = "TEMPLATE_BUTTON";
+    private static final String CHANGE_GROUP_NAME_CMD = "/changeGroupName";
     private final static String MESSAGE_HISTORY = "История сообщений";
     private final static String BACK_TO_MAIN_MENU = "В главное меню";
     private final static String COMMAND_NOT_RECOGNIZED = ":warning:Извините, команда не была распознана!:warning:";
     private final static String LIST_ALL_USERS = ":man_technologist:Список всех пользователей:";
-    private final static String CREATE_GROUP_INFO = STR."Для того, чтобы создать новую группу введите команду \{CREATE_GROUP_CMD} и название группы.\nНапример, \"\{CREATE_GROUP_CMD} Моя Группа \" .";
-    private final static String CREATE_TEMPLATE_INFO = STR."Для того, чтобы создать шаблон сообщения введите команду \{CREATE_TEMPLATE_CMD} и текст сообщения.\nНапример, \"\{CREATE_TEMPLATE_CMD} текст сообщения \" .";
+    private static final String SEND_CMD = "/send";
+    private static final String SEND_MESSAGE_INFO = STR."Для того, чтобы отправить сообщение введите команду \{SEND_CMD} после которой текст, который Вы хотите отправить.\n\nНапример:\n\{SEND_CMD} Hello World!";
+    private final static String CREATE_GROUP_INFO = STR."Для того, чтобы создать новую группу введите команду \{CREATE_GROUP_CMD} и название группы.\n\nНапример:\n\{CREATE_GROUP_CMD} Моя Группа .";
+    private static final String CHANGE_GROUP_NAME_INFO = STR."Для того, чтобы изменить название группы введите команду \{CHANGE_GROUP_NAME_CMD} и новое название для группы. \n\nНапример:\n\{CHANGE_GROUP_NAME_CMD} Новое название.";
+    private final static String CREATE_TEMPLATE_INFO = STR."Для того, чтобы создать шаблон сообщения введите команду \{CREATE_TEMPLATE_CMD} и текст сообщения.\n\nНапример:\n\{CREATE_TEMPLATE_CMD} текст сообщения.";
     private final static String DATA_IS_DELETED = ":x:Данные удалены!:x:";
-    private final static String GROUP_WAS_NOT_CREATED = ":x:Группа с таким именем уже существует!:x:";
+    private final static String THIS_NAME_ALREADY_EXISTS = ":x:Группа с таким названием уже существует!:x:";
     private final static String TEMPLATE_CREATED = ":heavy_check_mark: Шаблон сообщения создан!";
     private final static String TEMPLATE_WAS_NOT_CREATED = ":x:Шаблон с таким сообщением уже существует!:x:";
     private final static String SELECT_GROUP_FOR_READ = ":point_right:Выберите группу, пользователей которой необходимо показать:point_left:";
     private final static String SELECT_GROUP_FOR_DELETE = ":point_right:Выберите группу, из которой хотите удалить пользователя:point_left:";
     private final static String SELECT_GROUP_FOR_ADD = ":point_right:Выберите группу, в которую хотите добавить пользователя:point_left:";
     private final static String SELECT_GROUP_ON_DELETE = ":point_right:Выберите группу, которую хотите удалить:point_left:";
-    private Integer idGroup = 0;
+    private final static String SELECT_GROUP_FOR_SENDING = ":point_right:Выберите группу, которой хотите отправить сообщение:point_left:";
+    private final static String SELECT_GROUP_FOR_CHANGE = ":point_right:Выберите группу, название которой хотите изменить:point_left:";
+    private final static String SELECT_TEMPLATE = ":point_right:Выберите шаблон сообщения, который хотите использовать:point_left:";
+    private static final String CHANGED_SUCCESSFULLY = "Название группы изменено на ";
+    private static final String FOR_SENDING = "FOR_SENDING";
+    private Integer idGroup;
+    private String messageForSending;
 
     public TelegramBot() {
         super(BOT_TOKEN);
@@ -110,14 +122,21 @@ public class TelegramBot extends TelegramLongPollingBot {
                     sendMessage(chatId, CREATE_TEMPLATE_INFO);
                 } else if (messageText.contains(CREATE_GROUP_CMD)) {
                     String groupName = parseTextFromMessage(messageText);
-                    String resultMessage = createGroup(groupName) ? STR.":heavy_check_mark: Группа \{groupName} создана!" : GROUP_WAS_NOT_CREATED;
+                    String resultMessage = createGroup(groupName) ? STR.":heavy_check_mark: Группа \{groupName} создана!" : THIS_NAME_ALREADY_EXISTS;
                     sendMessage(chatId, resultMessage);
                 } else if (messageText.contains(CREATE_TEMPLATE_CMD)) {
                     String templateMessage = parseTextFromMessage(messageText);
                     String resultMessage = createTemplateMessage(templateMessage) ? TEMPLATE_CREATED : TEMPLATE_WAS_NOT_CREATED;
                     sendMessage(chatId, resultMessage);
-                } else if (messageText.equals(EDIT_GROUP)) {
-                    //todo
+                } else if (messageText.contains(CHANGE_GROUP_NAME_CMD)) {
+                    String newGroupName = parseTextFromMessage(CHANGE_GROUP_NAME_INFO);
+                    String result = changeGroupName(newGroupName) ? CHANGED_SUCCESSFULLY + newGroupName : THIS_NAME_ALREADY_EXISTS;
+                    sendMessage(chatId, result);
+                } else if (messageText.contains(SEND_CMD)) {
+                    messageForSending = parseTextFromMessage(SEND_CMD);
+                    showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
+                } else if (messageText.equals(EDIT_GROUP_NAME)) {
+                    showGroups(chatId, SELECT_GROUP_FOR_CHANGE, EDIT_GROUP_NAME);
                 } else if (messageText.equals(READ_USERS_FROM_GROUP)) {
                     showGroups(chatId, SELECT_GROUP_FOR_READ, READ_USERS_FROM_GROUP);
                 } else if (messageText.equals(DELETE_GROUP)) {
@@ -126,6 +145,12 @@ public class TelegramBot extends TelegramLongPollingBot {
                     showGroups(chatId, SELECT_GROUP_FOR_ADD, ADD_USER_TO_GROUP);
                 } else if (messageText.equals(DELETE_USER_FROM_GROUP)) {
                     showGroups(chatId, SELECT_GROUP_FOR_DELETE, DELETE_USER_FROM_GROUP);
+                } else if (messageText.equals(SEND_MESSAGE)) {
+                    sendMessageMenu(chatId);
+                } else if (messageText.equals(USE_TEMPLATE_MESSAGE)) {
+                    showTemplates(chatId);
+                } else if (messageText.equals(CREATE_MESSAGE)) {
+                    sendMessage(chatId, SEND_MESSAGE_INFO);
                 } else {
                     sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
                 }
@@ -179,8 +204,82 @@ public class TelegramBot extends TelegramLongPollingBot {
             } else if (callBackData.contains(DELETE_GROUP)) {
                 int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
                 deleteGroup(selectedGroupId);
+            } else if (callBackData.contains(EDIT_GROUP_NAME)) {
+                idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
+                sendMessage(chatId, CHANGE_GROUP_NAME_INFO);
+            } else if (callBackData.contains(TEMPLATE_BUTTON)) {
+                int templateId = Integer.parseInt(getIdFromCallBackData(TEMPLATE_BUTTON));
+                getMessageTextFromTemplate(templateId);
+                showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
+            } else if (callBackData.contains(FOR_SENDING)) {
+                int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
+                sendMessageToUsersOfGroup(selectedGroupId);
+                writeToTheMessageHistory(chatId);
             }
         }
+    }
+
+    private void sendMessageToUsersOfGroup(int selectedGroupId) {
+        var users = userRepository.findByGroupId(selectedGroupId);
+        LocalTime currentTime = LocalTime.now();
+        for (var user : users) {
+            if (currentTime.isAfter(user.getStartQuietTime()) && currentTime.isBefore(user.getEndQuietTime())) {
+                //add to Queue<DataType>, DataType(User u, String text)
+                //compare user.getStartQuietTime and user.getEndQuietTime
+                //save to db
+            } else {
+                sendMessage(user.getChatId(), messageForSending);
+            }
+        }
+    }
+
+    private void writeToTheMessageHistory(final long chatId) {
+        spbsut.kovalev.NotificationBot.entity.Message message = new spbsut.kovalev.NotificationBot.entity.Message();
+        message.setMessageText(messageForSending);
+        message.setSenderId(chatId);
+        message.setTimeSending(new Timestamp(System.currentTimeMillis()));
+        messageRepository.save(message);
+    }
+
+    private void showTemplates(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(EmojiParser.parseToUnicode(SELECT_TEMPLATE));
+
+        var templates = templateRepository.findAll();
+        var markup = new InlineKeyboardMarkup();
+        var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
+
+        for (var template : templates) {
+            var line = new ArrayList<InlineKeyboardButton>();
+            var templateButton = new InlineKeyboardButton();
+            String text = template.getMessageText();
+            text = text.length() > 30 ? text.substring(0, 30) + "..." : text;
+            templateButton.setText(text);
+            templateButton.setCallbackData(STR."\{TEMPLATE_BUTTON} \{template.getTemplateId()}");
+            line.add(templateButton);
+            rowsInLine.add(line);
+        }
+        markup.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markup);
+        send(message);
+    }
+
+    private void getMessageTextFromTemplate(final int templateId) {
+        if (templateRepository.findById(templateId).isPresent()) {
+            var template = templateRepository.findById(templateId).get();
+            messageForSending = template.getMessageText();
+        }
+    }
+
+    private boolean changeGroupName(String newGroupName) {
+        if (groupRepository.findById(idGroup).isPresent() && groupRepository.findByGroupName(newGroupName).isEmpty()) {
+            Group group = groupRepository.findById(idGroup).get();
+            group.setGroupName(newGroupName);
+            groupRepository.save(group);
+            return true;
+        }
+        return false;
     }
 
     private boolean createTemplateMessage(String templateMessage) {
@@ -194,7 +293,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void deleteGroup(final int selectedGroupId) {
-        if(groupRepository.findById(selectedGroupId).isPresent()) {
+        if (groupRepository.findById(selectedGroupId).isPresent()) {
             var users = userRepository.findByGroupId(selectedGroupId);
             deleteAllUsersFromGroup(users);
             groupRepository.deleteById(selectedGroupId);
@@ -202,14 +301,14 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void deleteAllUsersFromGroup(Iterable<User> users) {
-        for (User user : users) {
+        for (var user : users) {
             user.setGroupId(0);
         }
         userRepository.saveAll(users);
     }
 
     private void deleteUserFromGroup(final long selectedChatId) {
-        if(userRepository.findById(selectedChatId).isPresent()) {
+        if (userRepository.findById(selectedChatId).isPresent()) {
             User user = userRepository.findById(selectedChatId).get();
             user.setGroupId(0);
             userRepository.save(user);
@@ -217,7 +316,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void changeCountUsersInGroup(final int value) {
-        if(groupRepository.findById(idGroup).isPresent()) {
+        if (groupRepository.findById(idGroup).isPresent()) {
             Group group = groupRepository.findById(idGroup).get();
             group.setCountUsers(group.getCountUsers() + value);
             groupRepository.save(group);
@@ -226,7 +325,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void addUserToGroup(final long selectedChatId) {
-        if(userRepository.findById(selectedChatId).isPresent()) {
+        if (userRepository.findById(selectedChatId).isPresent()) {
             User user = userRepository.findById(selectedChatId).get();
             user.setGroupId(idGroup);
             userRepository.save(user);
@@ -279,6 +378,14 @@ public class TelegramBot extends TelegramLongPollingBot {
         send(message);
     }
 
+    private void sendMessageMenu(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(":zap:Вы можете использовать готовые шаблоны сообщений или создать новое сообщение!:zap:");
+        message.setReplyMarkup(getSendMessageMenu());
+        send(message);
+    }
+
     private void showUsers(long chatId, int groupId, String messageText, String callbackData) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
@@ -288,7 +395,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         var markup = new InlineKeyboardMarkup();
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
 
-        for (User user : users) {
+        for (var user : users) {
             var line = new ArrayList<InlineKeyboardButton>();
             var userButton = new InlineKeyboardButton();
             userButton.setText(STR."\{user.getChatId()} \{user.getUserName()}");
@@ -310,7 +417,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         var markup = new InlineKeyboardMarkup();
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
 
-        for (Group group : groups) {
+        for (var group : groups) {
             var line = new ArrayList<InlineKeyboardButton>();
             var groupButton = new InlineKeyboardButton();
             groupButton.setText(STR."\{group.getGroupName()} : \{group.getCountUsers()}чел.");
@@ -414,12 +521,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setChatId(chatId);
         message.setText(EmojiParser.parseToUnicode("Настройте режим \"Тишины\" - промежуток времени, когда Вы не будете получать сообщения от бота.\n\n:heavy_exclamation_mark:Время указано в соответствии с Московским временем (MSK).\n\nВыберите наиболее удобный режим: "));
 
-        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> firstLine = new ArrayList<>();
-        List<InlineKeyboardButton> secondLine = new ArrayList<>();
-        List<InlineKeyboardButton> thirdLine = new ArrayList<>();
-        List<InlineKeyboardButton> fourthLine = new ArrayList<>();
+        var markup = new InlineKeyboardMarkup();
+        var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
+        var firstLine = new ArrayList<InlineKeyboardButton>();
+        var secondLine = new ArrayList<InlineKeyboardButton>();
+        var thirdLine = new ArrayList<InlineKeyboardButton>();
+        var fourthLine = new ArrayList<InlineKeyboardButton>();
 
         var firstSilenceModeButton = new InlineKeyboardButton();
         firstSilenceModeButton.setCallbackData(FIRST_S_M);
@@ -451,10 +558,10 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private ReplyKeyboardMarkup getUserKeyboardMarkup() {
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        var keyboardMarkup = new ReplyKeyboardMarkup();
+        var keyboardRows = new ArrayList<KeyboardRow>();
+        var row = new KeyboardRow();
 
-        KeyboardRow row = new KeyboardRow();
         row.add(EmojiParser.parseToUnicode(SET_SILENCE_MODE));
         keyboardRows.add(row);
 
@@ -469,10 +576,10 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private ReplyKeyboardMarkup getAdminKeyboardMarkup() {
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        var keyboardMarkup = new ReplyKeyboardMarkup();
+        var keyboardRows = new ArrayList<KeyboardRow>();
+        var row = new KeyboardRow();
 
-        KeyboardRow row = new KeyboardRow();
         row.add(CREATE_TEMPLATE);
         row.add(SEND_MESSAGE);
         row.add(MESSAGE_HISTORY);
@@ -490,12 +597,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private ReplyKeyboardMarkup getGroupMenu() {
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        var keyboardMarkup = new ReplyKeyboardMarkup();
+        var keyboardRows = new ArrayList<KeyboardRow>();
+        var row = new KeyboardRow();
 
-        KeyboardRow row = new KeyboardRow();
         row.add(CREATE_GROUP);
-        row.add(EDIT_GROUP);
+        row.add(EDIT_GROUP_NAME);
         row.add(DELETE_GROUP);
         keyboardRows.add(row);
 
@@ -511,6 +618,23 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         keyboardMarkup.setKeyboard(keyboardRows);
 
+        return keyboardMarkup;
+    }
+
+    private ReplyKeyboardMarkup getSendMessageMenu() {
+        var keyboardMarkup = new ReplyKeyboardMarkup();
+        var keyboardRows = new ArrayList<KeyboardRow>();
+        var row = new KeyboardRow();
+
+        row.add(CREATE_MESSAGE);
+        row.add(USE_TEMPLATE_MESSAGE);
+        keyboardRows.add(row);
+
+        row = new KeyboardRow();
+        row.add(BACK_TO_MAIN_MENU);
+        keyboardRows.add(row);
+
+        keyboardMarkup.setKeyboard(keyboardRows);
         return keyboardMarkup;
     }
 
