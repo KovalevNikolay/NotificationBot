@@ -1,5 +1,6 @@
 package spbsut.kovalev.NotificationBot.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,6 +16,8 @@ public class Message {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer messageId;
+
+    @Column(length = 4096)
     private String messageText;
     private Timestamp timeSending;
     private Long senderId;

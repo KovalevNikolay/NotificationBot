@@ -90,8 +90,16 @@ public class TelegramBot extends TelegramLongPollingBot {
     private static final String SELECT_GROUP_FOR_SENDING = ":point_right:Выберите группу, которой хотите отправить сообщение:point_left:";
     private static final String SELECT_GROUP_FOR_CHANGE = ":point_right:Выберите группу, название которой хотите изменить:point_left:";
     private static final String SELECT_TEMPLATE = ":point_right:Выберите шаблон сообщения, который хотите использовать:point_left:";
+    private static final String SELECT_USER_FOR_ADD = ":point_right:Выберите пользователя, которого хотите добавить в группу:point_left:";
     private static final String CHANGED_SUCCESSFULLY = "Название группы изменено на ";
     private static final String FOR_SENDING = "FOR_SENDING";
+    private static final String GROUP_CHANGE_NAME = "GROUP_CHANGE_NAME";
+    private static final String GROUP_ADD_USER = "GROUP_ADD_USER";
+    private static final String GROUP_DELETE_USER = "GROUP_DELETE_USER";
+    private static final String GROUP_READ_USER = "GROUP_READ_USER";
+    private static final String GROUP_DELETED = "GROUP_DELETED";
+
+
     private Integer idGroup;
     private String messageForSending;
 
@@ -129,22 +137,22 @@ public class TelegramBot extends TelegramLongPollingBot {
                     String resultMessage = createTemplateMessage(templateMessage) ? TEMPLATE_CREATED : TEMPLATE_WAS_NOT_CREATED;
                     sendMessage(chatId, resultMessage);
                 } else if (messageText.contains(CHANGE_GROUP_NAME_CMD)) {
-                    String newGroupName = parseTextFromMessage(CHANGE_GROUP_NAME_INFO);
+                    String newGroupName = parseTextFromMessage(messageText);
                     String result = changeGroupName(newGroupName) ? CHANGED_SUCCESSFULLY + newGroupName : THIS_NAME_ALREADY_EXISTS;
                     sendMessage(chatId, result);
                 } else if (messageText.contains(SEND_CMD)) {
-                    messageForSending = parseTextFromMessage(SEND_CMD);
+                    messageForSending = parseTextFromMessage(messageText);
                     showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
                 } else if (messageText.equals(EDIT_GROUP_NAME)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_CHANGE, EDIT_GROUP_NAME);
+                    showGroups(chatId, SELECT_GROUP_FOR_CHANGE, GROUP_CHANGE_NAME);
                 } else if (messageText.equals(READ_USERS_FROM_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_READ, READ_USERS_FROM_GROUP);
+                    showGroups(chatId, SELECT_GROUP_FOR_READ, GROUP_READ_USER);
                 } else if (messageText.equals(DELETE_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_ON_DELETE, DELETE_GROUP);
+                    showGroups(chatId, SELECT_GROUP_ON_DELETE, GROUP_DELETED);
                 } else if (messageText.equals(ADD_USER_TO_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_ADD, ADD_USER_TO_GROUP);
+                    showGroups(chatId, SELECT_GROUP_FOR_ADD, GROUP_ADD_USER);
                 } else if (messageText.equals(DELETE_USER_FROM_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_DELETE, DELETE_USER_FROM_GROUP);
+                    showGroups(chatId, SELECT_GROUP_FOR_DELETE, GROUP_DELETE_USER);
                 } else if (messageText.equals(SEND_MESSAGE)) {
                     sendMessageMenu(chatId);
                 } else if (messageText.equals(USE_TEMPLATE_MESSAGE)) {
@@ -182,39 +190,40 @@ public class TelegramBot extends TelegramLongPollingBot {
                 long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
                 appointAnAdministrator(selectedChatId);
                 sendMessage(chatId, STR.":heavy_check_mark:Пользователь \{selectedChatId} назначен администратором!");
-            } else if (callBackData.contains(READ_USERS_FROM_GROUP)) {
+            } else if (callBackData.contains(GROUP_READ_USER)) {
                 int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
                 showUsers(chatId, selectedGroupId, LIST_GROUP_USERS, READ_USER_BUTTON);
-            } else if (callBackData.contains(DELETE_USER_FROM_GROUP)) {
+            } else if (callBackData.contains(GROUP_DELETE_USER)) {
                 idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
                 showUsers(chatId, idGroup, LIST_GROUP_USERS, DELETE_USER_BUTTON);
+            } else if (callBackData.contains(GROUP_ADD_USER)) {
+                idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
+                showUsers(chatId, 0, SELECT_USER_FOR_ADD, ADD_USER_BUTTON);
             } else if (callBackData.contains(DELETE_USER_BUTTON)) {
                 long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
                 deleteUserFromGroup(selectedChatId);
                 changeCountUsersInGroup(-1);
                 sendMessage(chatId, STR."Пользователь \{selectedChatId} удален из группы");
-            } else if (callBackData.equals(ADD_USER_TO_GROUP)) {
-                idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
-                showUsers(chatId, 0, LIST_GROUP_USERS, ADD_USER_BUTTON);
             } else if (callBackData.contains(ADD_USER_BUTTON)) {
                 long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
                 addUserToGroup(selectedChatId);
                 changeCountUsersInGroup(1);
                 sendMessage(chatId, STR."Пользователь \{selectedChatId} добавлен в группу");
-            } else if (callBackData.contains(DELETE_GROUP)) {
+            } else if (callBackData.contains(GROUP_DELETED)) {
                 int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
                 deleteGroup(selectedGroupId);
-            } else if (callBackData.contains(EDIT_GROUP_NAME)) {
+            } else if (callBackData.contains(GROUP_CHANGE_NAME)) {
                 idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
                 sendMessage(chatId, CHANGE_GROUP_NAME_INFO);
             } else if (callBackData.contains(TEMPLATE_BUTTON)) {
-                int templateId = Integer.parseInt(getIdFromCallBackData(TEMPLATE_BUTTON));
+                int templateId = Integer.parseInt(getIdFromCallBackData(callBackData));
                 getMessageTextFromTemplate(templateId);
                 showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
             } else if (callBackData.contains(FOR_SENDING)) {
                 int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
                 sendMessageToUsersOfGroup(selectedGroupId);
                 writeToTheMessageHistory(chatId);
+                sendMessage(chatId, ":white_check_mark:Сообщение отправлено!");
             }
         }
     }
@@ -256,7 +265,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             String text = template.getMessageText();
             text = text.length() > 30 ? text.substring(0, 30) + "..." : text;
             templateButton.setText(text);
-            templateButton.setCallbackData(STR."\{TEMPLATE_BUTTON} \{template.getTemplateId()}");
+            templateButton.setCallbackData(TEMPLATE_BUTTON + " " + template.getTemplateId());
             line.add(templateButton);
             rowsInLine.add(line);
         }
@@ -381,7 +390,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void sendMessageMenu(long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(":zap:Вы можете использовать готовые шаблоны сообщений или создать новое сообщение!:zap:");
+        message.setText(EmojiParser.parseToUnicode(":zap:Вы можете использовать готовые шаблоны сообщений или создать новое сообщение!:zap:"));
         message.setReplyMarkup(getSendMessageMenu());
         send(message);
     }

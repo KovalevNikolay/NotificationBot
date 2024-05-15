@@ -16,7 +16,7 @@ public class MessageTemplate {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer templateId;
 
-    @Column(unique = true, length = 4000)
+    @Column(unique = true, length = 4096)
     private String messageText;
 
     @Override
