@@ -110,121 +110,137 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
-
             if (adminRepository.existsById(chatId)) {
-                if (messageText.equals(START_CMD)) {
-                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                } else if (messageText.equals(USER_GROUPS)) {
-                    userGroupCommandRecieved(chatId);
-                } else if (messageText.equals(ALL_USERS)) {
-                    showUsers(chatId, -1, LIST_ALL_USERS, READ_USER_BUTTON);
-                } else if (messageText.equals(BACK_TO_MAIN_MENU)) {
-                    mainMenu(chatId);
-                } else if (messageText.equals(APPOINT_AN_ADMIN)) {
-                    showUsers(chatId, -1, LIST_ALL_USERS, MAKE_AN_ADMIN);
-                } else if (messageText.equals(CREATE_GROUP)) {
-                    sendMessage(chatId, CREATE_GROUP_INFO);
-                } else if (messageText.equals(CREATE_TEMPLATE)) {
-                    sendMessage(chatId, CREATE_TEMPLATE_INFO);
-                } else if (messageText.contains(CREATE_GROUP_CMD)) {
-                    String groupName = parseTextFromMessage(messageText);
-                    String resultMessage = createGroup(groupName) ? STR.":heavy_check_mark: Группа \{groupName} создана!" : THIS_NAME_ALREADY_EXISTS;
-                    sendMessage(chatId, resultMessage);
-                } else if (messageText.contains(CREATE_TEMPLATE_CMD)) {
-                    String templateMessage = parseTextFromMessage(messageText);
-                    String resultMessage = createTemplateMessage(templateMessage) ? TEMPLATE_CREATED : TEMPLATE_WAS_NOT_CREATED;
-                    sendMessage(chatId, resultMessage);
-                } else if (messageText.contains(CHANGE_GROUP_NAME_CMD)) {
-                    String newGroupName = parseTextFromMessage(messageText);
-                    String result = changeGroupName(newGroupName) ? CHANGED_SUCCESSFULLY + newGroupName : THIS_NAME_ALREADY_EXISTS;
-                    sendMessage(chatId, result);
-                } else if (messageText.contains(SEND_CMD)) {
-                    messageForSending = parseTextFromMessage(messageText);
-                    showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
-                } else if (messageText.equals(EDIT_GROUP_NAME)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_CHANGE, GROUP_CHANGE_NAME);
-                } else if (messageText.equals(READ_USERS_FROM_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_READ, GROUP_READ_USER);
-                } else if (messageText.equals(DELETE_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_ON_DELETE, GROUP_DELETED);
-                } else if (messageText.equals(ADD_USER_TO_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_ADD, GROUP_ADD_USER);
-                } else if (messageText.equals(DELETE_USER_FROM_GROUP)) {
-                    showGroups(chatId, SELECT_GROUP_FOR_DELETE, GROUP_DELETE_USER);
-                } else if (messageText.equals(SEND_MESSAGE)) {
-                    sendMessageMenu(chatId);
-                } else if (messageText.equals(USE_TEMPLATE_MESSAGE)) {
-                    showTemplates(chatId);
-                } else if (messageText.equals(CREATE_MESSAGE)) {
-                    sendMessage(chatId, SEND_MESSAGE_INFO);
-                } else {
-                    sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
-                }
+                processingAdminCommands(update);
             } else {
-                switch (messageText) {
-                    case START_CMD -> {
-                        startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                        registerUser(update.getMessage());
-                    }
-                    case SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
-                    case READ_MY_DATA -> readUserData(chatId, chatId);
-                    case DELETE_MY_DATA -> {
-                        deleteUserData(chatId);
-                        sendMessage(chatId, DATA_IS_DELETED);
-                    }
-                    default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
-                }
+                processingUserCommands(update);
             }
         } else if (update.hasCallbackQuery()) {
-            String callBackData = update.getCallbackQuery().getData();
-            long chatId = update.getCallbackQuery().getMessage().getChatId();
+            processingCallBackQuery(update);
+        }
+    }
 
-            if (callBackData.equals(FIRST_S_M) || callBackData.equals(SECOND_S_M) || callBackData.equals(THIRD_S_M) || callBackData.equals(FOURTH_S_M)) {
-                setSilenceModeForUser(chatId, callBackData);
-            } else if (callBackData.contains(READ_USER_BUTTON)) {
-                long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
-                readUserData(chatId, selectedChatId);
-            } else if (callBackData.contains(MAKE_AN_ADMIN)) {
-                long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
-                appointAnAdministrator(selectedChatId);
-                sendMessage(chatId, STR.":heavy_check_mark:Пользователь \{selectedChatId} назначен администратором!");
-            } else if (callBackData.contains(GROUP_READ_USER)) {
-                int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
-                showUsers(chatId, selectedGroupId, LIST_GROUP_USERS, READ_USER_BUTTON);
-            } else if (callBackData.contains(GROUP_DELETE_USER)) {
-                idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
-                showUsers(chatId, idGroup, LIST_GROUP_USERS, DELETE_USER_BUTTON);
-            } else if (callBackData.contains(GROUP_ADD_USER)) {
-                idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
-                showUsers(chatId, 0, SELECT_USER_FOR_ADD, ADD_USER_BUTTON);
-            } else if (callBackData.contains(DELETE_USER_BUTTON)) {
-                long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
-                deleteUserFromGroup(selectedChatId);
-                changeCountUsersInGroup(-1);
-                sendMessage(chatId, STR."Пользователь \{selectedChatId} удален из группы");
-            } else if (callBackData.contains(ADD_USER_BUTTON)) {
-                long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
-                addUserToGroup(selectedChatId);
-                changeCountUsersInGroup(1);
-                sendMessage(chatId, STR."Пользователь \{selectedChatId} добавлен в группу");
-            } else if (callBackData.contains(GROUP_DELETED)) {
-                int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
-                deleteGroup(selectedGroupId);
-            } else if (callBackData.contains(GROUP_CHANGE_NAME)) {
-                idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
-                sendMessage(chatId, CHANGE_GROUP_NAME_INFO);
-            } else if (callBackData.contains(TEMPLATE_BUTTON)) {
-                int templateId = Integer.parseInt(getIdFromCallBackData(callBackData));
-                getMessageTextFromTemplate(templateId);
-                showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
-            } else if (callBackData.contains(FOR_SENDING)) {
-                int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
-                sendMessageToUsersOfGroup(selectedGroupId);
-                writeToTheMessageHistory(chatId);
-                sendMessage(chatId, ":white_check_mark:Сообщение отправлено!");
+    private void processingCallBackQuery(Update update) {
+        String callBackData = update.getCallbackQuery().getData();
+        long chatId = update.getCallbackQuery().getMessage().getChatId();
+
+        if (callBackData.equals(FIRST_S_M) || callBackData.equals(SECOND_S_M) || callBackData.equals(THIRD_S_M) || callBackData.equals(FOURTH_S_M)) {
+            setSilenceModeForUser(chatId, callBackData);
+        } else if (callBackData.contains(READ_USER_BUTTON)) {
+            long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
+            readUserData(chatId, selectedChatId);
+        } else if (callBackData.contains(MAKE_AN_ADMIN)) {
+            long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
+            appointAnAdministrator(selectedChatId);
+            sendMessage(chatId, STR.":heavy_check_mark:Пользователь \{selectedChatId} назначен администратором!");
+        } else if (callBackData.contains(GROUP_READ_USER)) {
+            int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
+            showUsers(chatId, selectedGroupId, LIST_GROUP_USERS, READ_USER_BUTTON);
+        } else if (callBackData.contains(GROUP_DELETE_USER)) {
+            idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
+            showUsers(chatId, idGroup, LIST_GROUP_USERS, DELETE_USER_BUTTON);
+        } else if (callBackData.contains(GROUP_ADD_USER)) {
+            idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
+            showUsers(chatId, 0, SELECT_USER_FOR_ADD, ADD_USER_BUTTON);
+        } else if (callBackData.contains(DELETE_USER_BUTTON)) {
+            long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
+            deleteUserFromGroup(selectedChatId);
+            changeCountUsersInGroup(-1);
+            sendMessage(chatId, STR."Пользователь \{selectedChatId} удален из группы");
+        } else if (callBackData.contains(ADD_USER_BUTTON)) {
+            long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
+            addUserToGroup(selectedChatId);
+            changeCountUsersInGroup(1);
+            sendMessage(chatId, STR."Пользователь \{selectedChatId} добавлен в группу");
+        } else if (callBackData.contains(GROUP_DELETED)) {
+            int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
+            deleteGroup(selectedGroupId);
+        } else if (callBackData.contains(GROUP_CHANGE_NAME)) {
+            idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
+            sendMessage(chatId, CHANGE_GROUP_NAME_INFO);
+        } else if (callBackData.contains(TEMPLATE_BUTTON)) {
+            int templateId = Integer.parseInt(getIdFromCallBackData(callBackData));
+            getMessageTextFromTemplate(templateId);
+            showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
+        } else if (callBackData.contains(FOR_SENDING)) {
+            int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
+            sendMessageToUsersOfGroup(selectedGroupId);
+            writeToTheMessageHistory(chatId);
+            sendMessage(chatId, ":white_check_mark:Сообщение отправлено!");
+        }
+    }
+
+    private void processingUserCommands(Update update) {
+        String messageText = update.getMessage().getText();
+        long chatId = update.getMessage().getChatId();
+
+        switch (messageText) {
+            case START_CMD -> {
+                startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                registerUser(update.getMessage());
             }
+            case SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
+            case READ_MY_DATA -> readUserData(chatId, chatId);
+            case DELETE_MY_DATA -> {
+                deleteUserData(chatId);
+                sendMessage(chatId, DATA_IS_DELETED);
+            }
+            default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
+        }
+    }
+
+    private void processingAdminCommands(Update update) {
+        String messageText = update.getMessage().getText();
+        long chatId = update.getMessage().getChatId();
+
+        if (messageText.equals(START_CMD)) {
+            startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+        } else if (messageText.equals(USER_GROUPS)) {
+            userGroupCommandRecieved(chatId);
+        } else if (messageText.equals(ALL_USERS)) {
+            showUsers(chatId, -1, LIST_ALL_USERS, READ_USER_BUTTON);
+        } else if (messageText.equals(BACK_TO_MAIN_MENU)) {
+            mainMenu(chatId);
+        } else if (messageText.equals(APPOINT_AN_ADMIN)) {
+            showUsers(chatId, -1, LIST_ALL_USERS, MAKE_AN_ADMIN);
+        } else if (messageText.equals(CREATE_GROUP)) {
+            sendMessage(chatId, CREATE_GROUP_INFO);
+        } else if (messageText.equals(CREATE_TEMPLATE)) {
+            sendMessage(chatId, CREATE_TEMPLATE_INFO);
+        } else if (messageText.contains(CREATE_GROUP_CMD)) {
+            String groupName = parseTextFromMessage(messageText);
+            String resultMessage = createGroup(groupName) ? STR.":heavy_check_mark: Группа \{groupName} создана!" : THIS_NAME_ALREADY_EXISTS;
+            sendMessage(chatId, resultMessage);
+        } else if (messageText.contains(CREATE_TEMPLATE_CMD)) {
+            String templateMessage = parseTextFromMessage(messageText);
+            String resultMessage = createTemplateMessage(templateMessage) ? TEMPLATE_CREATED : TEMPLATE_WAS_NOT_CREATED;
+            sendMessage(chatId, resultMessage);
+        } else if (messageText.contains(CHANGE_GROUP_NAME_CMD)) {
+            String newGroupName = parseTextFromMessage(messageText);
+            String result = changeGroupName(newGroupName) ? CHANGED_SUCCESSFULLY + newGroupName : THIS_NAME_ALREADY_EXISTS;
+            sendMessage(chatId, result);
+        } else if (messageText.contains(SEND_CMD)) {
+            messageForSending = parseTextFromMessage(messageText);
+            showGroups(chatId, SELECT_GROUP_FOR_SENDING, FOR_SENDING);
+        } else if (messageText.equals(EDIT_GROUP_NAME)) {
+            showGroups(chatId, SELECT_GROUP_FOR_CHANGE, GROUP_CHANGE_NAME);
+        } else if (messageText.equals(READ_USERS_FROM_GROUP)) {
+            showGroups(chatId, SELECT_GROUP_FOR_READ, GROUP_READ_USER);
+        } else if (messageText.equals(DELETE_GROUP)) {
+            showGroups(chatId, SELECT_GROUP_ON_DELETE, GROUP_DELETED);
+        } else if (messageText.equals(ADD_USER_TO_GROUP)) {
+            showGroups(chatId, SELECT_GROUP_FOR_ADD, GROUP_ADD_USER);
+        } else if (messageText.equals(DELETE_USER_FROM_GROUP)) {
+            showGroups(chatId, SELECT_GROUP_FOR_DELETE, GROUP_DELETE_USER);
+        } else if (messageText.equals(SEND_MESSAGE)) {
+            sendMessageMenu(chatId);
+        } else if (messageText.equals(USE_TEMPLATE_MESSAGE)) {
+            showTemplates(chatId);
+        } else if (messageText.equals(CREATE_MESSAGE)) {
+            sendMessage(chatId, SEND_MESSAGE_INFO);
+        } else {
+            sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
         }
     }
 
