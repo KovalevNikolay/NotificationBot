@@ -174,6 +174,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (callBackData.contains(SILENCE_MODE)) {
             int silenceModeId = Integer.parseInt(getIdFromCallBackData(callBackData));
             setSilenceModeForUser(chatId, silenceModeId);
+            sendTheSelectedMode(chatId, silenceModeId);
         } else if (callBackData.contains(READ_USER_BUTTON)) {
             long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
             readUserData(chatId, selectedChatId);
@@ -215,6 +216,19 @@ public class TelegramBot extends TelegramLongPollingBot {
             sendMessageToUsersOfGroup(selectedGroupId);
             writeToTheMessageHistory(chatId);
             sendMessage(chatId, ":white_check_mark:Сообщение отправлено!");
+        }
+    }
+
+    private void sendTheSelectedMode(final long chatId, final int silenceModeId) {
+        if (silenceModeRepository.findById(silenceModeId).isPresent()) {
+            var mode = silenceModeRepository.findById(silenceModeId).get();
+            var message = new SendMessage();
+            var text = (mode.getStartQuietTime() == null || mode.getEndQuietTime() == null)
+                    ? "получать сообщения всегда"
+                    : STR."с \{mode.getStartQuietTime()} по \{mode.getEndQuietTime()}";
+            message.setChatId(chatId);
+            message.setText("Вы выбрали настройку: " + text);
+            send(message);
         }
     }
 
@@ -331,9 +345,9 @@ public class TelegramBot extends TelegramLongPollingBot {
             var line = new ArrayList<InlineKeyboardButton>();
             var templateButton = new InlineKeyboardButton();
             String text = template.getMessageText();
-            text = text.length() > 30 ? text.substring(0, 30) + "..." : text;
+            text = text.length() > 30 ? STR."\{text.substring(0, 30)}..." : text;
             templateButton.setText(text);
-            templateButton.setCallbackData(TEMPLATE_BUTTON + " " + template.getTemplateId());
+            templateButton.setCallbackData(STR."\{TEMPLATE_BUTTON} \{template.getTemplateId()}");
             line.add(templateButton);
             rowsInLine.add(line);
         }
