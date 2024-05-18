@@ -151,12 +151,12 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         for (var msg : history) {
             var line = new ArrayList<InlineKeyboardButton>();
-            var templateButton = new InlineKeyboardButton();
+            var messageButton = new InlineKeyboardButton();
             String text = msg.getMessageText();
             text = text.length() > 30 ? text.substring(0, 30) + "..." : text;
-            templateButton.setText(text);
-            templateButton.setCallbackData("#");
-            line.add(templateButton);
+            messageButton.setText(text);
+            messageButton.setCallbackData("#");
+            line.add(messageButton);
             rowsInLine.add(line);
         }
 
@@ -467,10 +467,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void showUsers(final long chatId, final int groupId, final String text, final String callback) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(EmojiParser.parseToUnicode(text));
-
+        var message = new SendMessage();
         var users = groupId >= 0 ? userRepository.findByGroupId(groupId) : userRepository.findAll();
         var markup = new InlineKeyboardMarkup();
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
@@ -484,15 +481,14 @@ public class TelegramBot extends TelegramLongPollingBot {
             rowsInLine.add(line);
         }
         markup.setKeyboard(rowsInLine);
+        message.setChatId(chatId);
+        message.setText(EmojiParser.parseToUnicode(text));
         message.setReplyMarkup(markup);
         send(message);
     }
 
     private void showGroups(final long chatId, final String text, final String callback) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(EmojiParser.parseToUnicode(text));
-
+        var message = new SendMessage();
         var groups = groupRepository.findAll();
         var markup = new InlineKeyboardMarkup();
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
@@ -506,6 +502,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             rowsInLine.add(line);
         }
         markup.setKeyboard(rowsInLine);
+        message.setChatId(chatId);
+        message.setText(EmojiParser.parseToUnicode(text));
         message.setReplyMarkup(markup);
         send(message);
     }
@@ -530,7 +528,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
 
         if (userRepository.findById(chatId).isPresent()) {
-            User user = userRepository.findById(chatId).get();
+            var user = userRepository.findById(chatId).get();
             user.setStartQuietTime(startQuietTime);
             user.setEndQuietTime(endQuietTime);
             userRepository.save(user);
@@ -545,7 +543,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private void readUserData(final long chatId, final long userDataId) {
         if (userRepository.findById(userDataId).isPresent()) {
-            User user = userRepository.findById(userDataId).get();
+            var user = userRepository.findById(userDataId).get();
             String userData = STR."Идентификатор: \{user.getChatId()}\nИмя: \{user.getFirstName()}\nФамилия: \{user.getLastName()}\nUsername: \{user.getUserName()}\nБИО: \{user.getBio()}\nГруппа: \{user.getGroupId()}\nНе беспокоить с \{user.getStartQuietTime()} по \{user.getEndQuietTime()}\nДата регистрации: \{user.getRegisteredAt()}";
             sendMessage(chatId, userData);
         }
@@ -574,7 +572,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private void startCommandReceived(final long chatId, final String firstName) {
         String answer = EmojiParser.parseToUnicode(STR."Привет, \{firstName}, приятно познакомиться!:blush:");
-        SendMessage message = new SendMessage();
+        var message = new SendMessage();
         message.setChatId(chatId);
         message.setText(answer);
 
@@ -588,10 +586,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void setSilenceModeCommandReceived(final long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(EmojiParser.parseToUnicode("Настройте режим \"Не беспокоить\" - промежуток времени, когда Вы не будете получать сообщения от бота.\n\n:heavy_exclamation_mark:Время указано в соответствии с Московским временем (MSK).\n\nВыберите наиболее удобный режим: "));
-
+        var message = new SendMessage();
         var markup = new InlineKeyboardMarkup();
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
         var silenceModes = silenceModeRepository.findAll();
@@ -602,6 +597,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
 
         markup.setKeyboard(rowsInLine);
+        message.setChatId(chatId);
+        message.setText(EmojiParser.parseToUnicode("Настройте режим \"Не беспокоить\" - промежуток времени, когда Вы не будете получать сообщения от бота.\n\n:heavy_exclamation_mark:Время указано в соответствии с Московским временем (MSK).\n\nВыберите наиболее удобный режим: "));
         message.setReplyMarkup(markup);
         send(message);
     }
@@ -609,12 +606,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     private ArrayList<InlineKeyboardButton> getInlineKeyboardButtons(final SilenceMode mode) {
         var line = new ArrayList<InlineKeyboardButton>();
         var silenceModeButton = new InlineKeyboardButton();
-        silenceModeButton.setCallbackData(STR."\{SILENCE_MODE} \{mode.getId()}");
         if (mode.getStartQuietTime() == null || mode.getEndQuietTime() == null) {
             silenceModeButton.setText("Получать сообщения всегда!");
         } else {
             silenceModeButton.setText(STR."с \{mode.getStartQuietTime()} по \{mode.getEndQuietTime()}");
         }
+        silenceModeButton.setCallbackData(STR."\{SILENCE_MODE} \{mode.getId()}");
         line.add(silenceModeButton);
         return line;
     }
@@ -701,7 +698,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void sendMessage(long chatId, String textToSend) {
-        SendMessage message = new SendMessage();
+        var message = new SendMessage();
         message.setChatId(chatId);
         message.setText(EmojiParser.parseToUnicode(textToSend));
         send(message);
