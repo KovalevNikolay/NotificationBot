@@ -72,7 +72,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private static final String CREATE_GROUP = "Создать группу";
     private static final String EDIT_GROUP_NAME = "Изменить группу";
     private static final String DELETE_GROUP = "Удалить группу";
-    private static final String CREATE_TEMPLATE = "Создать шаблон сообщения";
+    private static final String CREATE_TEMPLATE = "Шаблоны сообщений";
     private static final String MESSAGE_HISTORY = "История сообщений";
     private static final String SEND_MESSAGE = "Отправить сообщение";
     private static final String CREATE_MESSAGE = "Новое сообщение";
@@ -221,6 +221,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (messageText.equals(CREATE_GROUP)) {
             sendMessage(chatId, CREATE_GROUP_INFO);
         } else if (messageText.equals(CREATE_TEMPLATE)) {
+            showTemplates(chatId, "#", "Шаблоны сообщений:");
             sendMessage(chatId, CREATE_TEMPLATE_INFO);
         } else if (messageText.contains(CREATE_GROUP_CMD)) {
             String groupName = parseTextFromMessage(messageText);
@@ -250,7 +251,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (messageText.equals(SEND_MESSAGE)) {
             sendMessageMenu(chatId);
         } else if (messageText.equals(USE_TEMPLATE_MESSAGE)) {
-            showTemplates(chatId);
+            showTemplates(chatId, TEMPLATE_BUTTON, SELECT_TEMPLATE);
         } else if (messageText.equals(CREATE_MESSAGE)) {
             sendMessage(chatId, SEND_MESSAGE_INFO);
         } else if (messageText.equals(MESSAGE_HISTORY)) {
@@ -282,7 +283,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             var line = new ArrayList<InlineKeyboardButton>();
             var messageButton = new InlineKeyboardButton();
             String text = msg.getMessageText();
-            text = text.length() > 30 ? text.substring(0, 30) + "..." : text;
+            text = text.length() > 30 ? STR."\{text.substring(0, 30)}..." : text;
             messageButton.setText(text);
             messageButton.setCallbackData("#");
             line.add(messageButton);
@@ -304,7 +305,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                     ? "получать сообщения всегда"
                     : STR."с \{mode.getStartQuietTime()} по \{mode.getEndQuietTime()}";
             message.setChatId(chatId);
-            message.setText("Вы выбрали настройку: " + text);
+            message.setText(STR."Вы выбрали настройку: \{text}");
             send(message);
         }
     }
@@ -337,7 +338,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         messageRepository.save(message);
     }
 
-    private void showTemplates(final long chatId) {
+    private void showTemplates(final long chatId, final String callback, final String messageInfo) {
         var templates = templateRepository.findAll();
         var markup = new InlineKeyboardMarkup();
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
@@ -349,14 +350,14 @@ public class TelegramBot extends TelegramLongPollingBot {
             String text = template.getMessageText();
             text = text.length() > 30 ? STR."\{text.substring(0, 30)}..." : text;
             templateButton.setText(text);
-            templateButton.setCallbackData(STR."\{TEMPLATE_BUTTON} \{template.getTemplateId()}");
+            templateButton.setCallbackData(STR."\{callback} \{template.getTemplateId()}");
             line.add(templateButton);
             rowsInLine.add(line);
         }
 
         markup.setKeyboard(rowsInLine);
         message.setChatId(chatId);
-        message.setText(EmojiParser.parseToUnicode(SELECT_TEMPLATE));
+        message.setText(EmojiParser.parseToUnicode(messageInfo));
         message.setReplyMarkup(markup);
         send(message);
     }
