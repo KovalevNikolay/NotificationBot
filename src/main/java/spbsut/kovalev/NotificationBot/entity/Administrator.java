@@ -2,7 +2,7 @@ package spbsut.kovalev.NotificationBot.entity;
 
 import jakarta.persistence.Entity;
 
-@Entity(name = "admin")
+@Entity(name = "admins")
 public class Administrator extends TelegramUser {
     @Override
     public String toString() {

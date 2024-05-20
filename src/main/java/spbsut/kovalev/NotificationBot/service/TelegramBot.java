@@ -114,6 +114,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private Integer idGroup;
     private String messageForSending;
+    private String groupName;
 
     public TelegramBot() {
         super(BOT_TOKEN);
@@ -170,6 +171,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (callBackData.contains(GROUP_DELETED)) {
             int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
             deleteGroup(selectedGroupId);
+            sendMessage(chatId, STR.":x:Группа \{groupName} удалена!:x:");
         } else if (callBackData.contains(GROUP_CHANGE_NAME)) {
             idGroup = Integer.parseInt(getIdFromCallBackData(callBackData));
             sendMessage(chatId, CHANGE_GROUP_NAME_INFO);
@@ -191,8 +193,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         switch (messageText) {
             case START_CMD -> {
-                registerUser(update.getMessage());
                 startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                registerUser(update.getMessage());
             }
             case SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
             case READ_MY_DATA -> readUserData(chatId, chatId);
@@ -219,6 +221,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (messageText.equals(APPOINT_AN_ADMIN)) {
             showUsers(chatId, -1, LIST_ALL_USERS, MAKE_AN_ADMIN);
         } else if (messageText.equals(CREATE_GROUP)) {
+            showGroups(chatId, "Группы пользователей: ", "#");
             sendMessage(chatId, CREATE_GROUP_INFO);
         } else if (messageText.equals(CREATE_TEMPLATE)) {
             showTemplates(chatId, "#", "Шаблоны сообщений:");
@@ -292,7 +295,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         markup.setKeyboard(rowsInLine);
         message.setChatId(chatId);
-        message.setText(EmojiParser.parseToUnicode(SELECT_TEMPLATE));
+        message.setText(EmojiParser.parseToUnicode(":warning:История отправленных сообщений:"));
         message.setReplyMarkup(markup);
         send(message);
     }
@@ -315,8 +318,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         var schedulers = new ArrayList<Scheduler>();
         var currentTime = LocalTime.now();
         for (var user : users) {
-            if (user.getStartQuietTime() != null && user.getEndQuietTime() != null &&
-                    currentTime.isAfter(user.getStartQuietTime()) && currentTime.isBefore(user.getEndQuietTime())) {
+            if (currentTime.isBefore(user.getStartQuietTime()) && currentTime.isAfter(user.getEndQuietTime())) {
                 var scheduler = new Scheduler();
                 scheduler.setUserId(user.getChatId());
                 scheduler.setStartQuietTime(user.getStartQuietTime());
@@ -393,6 +395,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (groupRepository.findById(selectedGroupId).isPresent()) {
             var users = userRepository.findByGroupId(selectedGroupId);
             deleteAllUsersFromGroup(users);
+            groupName = groupRepository.findById(selectedGroupId).get().getGroupName();
             groupRepository.deleteById(selectedGroupId);
         }
     }
@@ -561,13 +564,13 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void readUserData(final long chatId, final long userDataId) {
         if (userRepository.findById(userDataId).isPresent()) {
             var user = userRepository.findById(userDataId).get();
-            String userData = STR."Идентификатор: \{user.getChatId()}\nИмя: \{user.getFirstName()}\nФамилия: \{user.getLastName()}\nUsername: \{user.getUserName()}\nБИО: \{user.getBio()}\nГруппа: \{user.getGroupId()}\nНе беспокоить с \{user.getStartQuietTime()} по \{user.getEndQuietTime()}\nДата регистрации: \{user.getRegisteredAt()}";
+            String userData = STR."Идентификатор: \{user.getChatId()}\nИмя: \{user.getFirstName()}\nФамилия: \{user.getLastName()}\nUsername: \{user.getUserName()}\nО себе: \{user.getBio()}\nГруппа: \{user.getGroupId()}\nНе беспокоить с \{user.getStartQuietTime()} по \{user.getEndQuietTime()}\nДата регистрации: \{user.getRegisteredAt()}";
             sendMessage(chatId, userData);
         }
     }
 
     private void registerUser(final Message message) {
-        if (!userRepository.existsById(message.getChatId()) && !adminRepository.existsById(message.getChatId())) {
+        if (!userRepository.existsById(message.getChatId()) || adminRepository.existsById(message.getChatId())) {
             var chat = message.getChat();
 
             User user = new User();
@@ -593,10 +596,10 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setChatId(chatId);
         message.setText(answer);
 
-        if (userRepository.existsById(chatId)) {
-            message.setReplyMarkup(getUserKeyboardMarkup());
-        } else if (adminRepository.existsById(chatId)) {
+        if (adminRepository.existsById(chatId)) {
             message.setReplyMarkup(getAdminKeyboardMarkup());
+        } else {
+            message.setReplyMarkup(getUserKeyboardMarkup());
         }
 
         send(message);
