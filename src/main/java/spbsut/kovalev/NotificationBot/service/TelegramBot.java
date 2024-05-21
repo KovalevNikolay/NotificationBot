@@ -32,6 +32,7 @@ import java.sql.Timestamp;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 @Component
@@ -161,12 +162,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (callBackData.contains(DELETE_USER_BUTTON)) {
             long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
             deleteUserFromGroup(selectedChatId);
-            changeCountUsersInGroup(-1);
+            changeCountUsersInGroup();
             sendMessage(chatId, STR."Пользователь \{selectedChatId} удален из группы");
         } else if (callBackData.contains(ADD_USER_BUTTON)) {
             long selectedChatId = Long.parseLong(getIdFromCallBackData(callBackData));
             addUserToGroup(selectedChatId);
-            changeCountUsersInGroup(1);
+            changeCountUsersInGroup();
             sendMessage(chatId, STR."Пользователь \{selectedChatId} добавлен в группу");
         } else if (callBackData.contains(GROUP_DELETED)) {
             int selectedGroupId = Integer.parseInt(getIdFromCallBackData(callBackData));
@@ -267,12 +268,23 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Scheduled(cron = "0 1 * * * ?")
     private void sendMessagesFromTheScheduler() {
         var scheduler = schedulerRepository.findAll();
-        var currentTime = LocalTime.now();
         for (var schedule : scheduler) {
-            if (currentTime.isBefore(schedule.getStartQuietTime()) || currentTime.isAfter(schedule.getEndQuietTime())) {
+            if (!isBetween(schedule.getStartQuietTime(), schedule.getEndQuietTime())) {
                 sendMessage(schedule.getUserId(), schedule.getMessageText());
                 schedulerRepository.deleteById(schedule.getId());
             }
+        }
+    }
+
+    private boolean isBetween(LocalTime startTime, LocalTime endTime) {
+        LocalTime currentTime = LocalTime.now();
+        if (startTime == null || endTime == null) {
+            return false;
+        }
+        if (startTime.isBefore(endTime)) {
+            return currentTime.isAfter(startTime) && currentTime.isBefore(endTime);
+        } else {
+            return currentTime.isAfter(startTime) || currentTime.isBefore(endTime);
         }
     }
 
@@ -316,9 +328,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void sendMessageToUsersOfGroup(final int selectedGroupId) {
         var users = userRepository.findByGroupId(selectedGroupId);
         var schedulers = new ArrayList<Scheduler>();
-        var currentTime = LocalTime.now();
         for (var user : users) {
-            if (currentTime.isBefore(user.getStartQuietTime()) && currentTime.isAfter(user.getEndQuietTime())) {
+            if (isBetween(user.getStartQuietTime(), user.getEndQuietTime())) {
                 var scheduler = new Scheduler();
                 scheduler.setUserId(user.getChatId());
                 scheduler.setStartQuietTime(user.getStartQuietTime());
@@ -415,13 +426,24 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void changeCountUsersInGroup(final int value) {
+    private void changeCountUsersInGroup() {
         if (groupRepository.findById(idGroup).isPresent()) {
-            Group group = groupRepository.findById(idGroup).get();
-            group.setCountUsers(group.getCountUsers() + value);
+            var group = groupRepository.findById(idGroup).get();
+            int countUsers = getCountUsersInGroup(idGroup);
+            group.setCountUsers(countUsers);
             groupRepository.save(group);
             idGroup = 0;
         }
+    }
+
+    private int getCountUsersInGroup(final int groupId) {
+        var usersIterator = userRepository.findByGroupId(groupId).iterator();
+        int count = 0;
+        while (usersIterator.hasNext()) {
+            usersIterator.next();
+            count++;
+        }
+        return count;
     }
 
     private void addUserToGroup(final long selectedChatId) {
