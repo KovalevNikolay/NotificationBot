@@ -32,7 +32,6 @@ import java.sql.Timestamp;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.StreamSupport;
 
 @Slf4j
 @Component
@@ -358,13 +357,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         var message = new SendMessage();
 
         for (var template : templates) {
-            var line = new ArrayList<InlineKeyboardButton>();
             var templateButton = new InlineKeyboardButton();
             String text = template.getMessageText();
             text = text.length() > 30 ? STR."\{text.substring(0, 30)}..." : text;
             templateButton.setText(text);
             templateButton.setCallbackData(STR."\{callback} \{template.getTemplateId()}");
-            line.add(templateButton);
+            var line = List.of(templateButton);
             rowsInLine.add(line);
         }
 
@@ -515,11 +513,10 @@ public class TelegramBot extends TelegramLongPollingBot {
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
 
         for (var user : users) {
-            var line = new ArrayList<InlineKeyboardButton>();
             var userButton = new InlineKeyboardButton();
             userButton.setText(STR."\{user.getChatId()} \{user.getUserName()}");
             userButton.setCallbackData(STR."\{callback} \{user.getChatId()}");
-            line.add(userButton);
+            var line = List.of(userButton);
             rowsInLine.add(line);
         }
         markup.setKeyboard(rowsInLine);
@@ -536,11 +533,10 @@ public class TelegramBot extends TelegramLongPollingBot {
         var rowsInLine = new ArrayList<List<InlineKeyboardButton>>();
 
         for (var group : groups) {
-            var line = new ArrayList<InlineKeyboardButton>();
             var groupButton = new InlineKeyboardButton();
             groupButton.setText(STR."\{group.getGroupName()} : \{group.getCountUsers()}чел.");
             groupButton.setCallbackData(STR."\{callback} \{group.getGroupId()}");
-            line.add(groupButton);
+            var line = List.of(groupButton);
             rowsInLine.add(line);
         }
         markup.setKeyboard(rowsInLine);
@@ -602,7 +598,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             user.setUserName(chat.getUserName());
             user.setBio(chat.getBio());
             user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
-            user.setGroupId(null);
+            user.setGroupId(0);
             user.setStartQuietTime(null);
             user.setEndQuietTime(null);
 
@@ -640,13 +636,15 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         markup.setKeyboard(rowsInLine);
         message.setChatId(chatId);
-        message.setText(EmojiParser.parseToUnicode("Настройте режим \"Не беспокоить\" - промежуток времени, когда Вы не будете получать сообщения от бота.\n\n:heavy_exclamation_mark:Время указано в соответствии с Московским временем (MSK).\n\nВыберите наиболее удобный режим: "));
+        message.setText(EmojiParser.parseToUnicode(""" 
+                Настройте режим "Не беспокоить" - промежуток времени, когда Вы не будете получать сообщения от бота.
+                \n:heavy_exclamation_mark:Время указано в соответствии с Московским временем (MSK).
+                \nВыберите наиболее удобный режим:"""));
         message.setReplyMarkup(markup);
         send(message);
     }
 
-    private ArrayList<InlineKeyboardButton> getInlineKeyboardButtons(final SilenceMode mode) {
-        var line = new ArrayList<InlineKeyboardButton>();
+    private List<InlineKeyboardButton> getInlineKeyboardButtons(final SilenceMode mode) {
         var silenceModeButton = new InlineKeyboardButton();
         if (mode.getStartQuietTime() == null || mode.getEndQuietTime() == null) {
             silenceModeButton.setText("Получать сообщения всегда!");
@@ -654,8 +652,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             silenceModeButton.setText(STR."с \{mode.getStartQuietTime()} по \{mode.getEndQuietTime()}");
         }
         silenceModeButton.setCallbackData(STR."\{SILENCE_MODE} \{mode.getId()}");
-        line.add(silenceModeButton);
-        return line;
+        return List.of(silenceModeButton);
     }
 
     private ReplyKeyboardMarkup getUserKeyboardMarkup() {
