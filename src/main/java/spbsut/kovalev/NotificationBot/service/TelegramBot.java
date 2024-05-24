@@ -60,24 +60,24 @@ public class TelegramBot extends TelegramLongPollingBot {
     private static final String SEND_CMD = "/send";
     private static final String COMMAND_NOT_RECOGNIZED = ":warning:Извините, команда не была распознана!:warning:";
 
-    private static final String READ_MY_DATA = "Мои данные";
-    private static final String DELETE_MY_DATA = "Удалить мои данные";
-    private static final String SET_SILENCE_MODE = "Настроить режим \"Не беспокоить\"";
-    private static final String USER_GROUPS = "Группы пользователей";
-    private static final String ALL_USERS = "Все пользователи";
-    private static final String APPOINT_AN_ADMIN = "Назначить администратора";
-    private static final String ADD_USER_TO_GROUP = "Добавить пользователя в группу";
-    private static final String DELETE_USER_FROM_GROUP = "Удалить пользователя из группы";
-    private static final String READ_USERS_FROM_GROUP = "Показать пользователей";
-    private static final String CREATE_GROUP = "Создать группу";
-    private static final String EDIT_GROUP_NAME = "Изменить группу";
-    private static final String DELETE_GROUP = "Удалить группу";
-    private static final String CREATE_TEMPLATE = "Шаблоны сообщений";
-    private static final String MESSAGE_HISTORY = "История сообщений";
-    private static final String SEND_MESSAGE = "Отправить сообщение";
-    private static final String CREATE_MESSAGE = "Новое сообщение";
-    private static final String USE_TEMPLATE_MESSAGE = "Использовать шаблон";
-    private static final String BACK_TO_MAIN_MENU = "В главное меню";
+    private static final String READ_MY_DATA = EmojiParser.parseToUnicode(":floppy_disk:Мои данные");
+    private static final String DELETE_MY_DATA = EmojiParser.parseToUnicode(":x:Удалить мои данные");
+    private static final String SET_SILENCE_MODE = EmojiParser.parseToUnicode(":bell:Настроить режим \"Не беспокоить\"");
+    private static final String USER_GROUPS = EmojiParser.parseToUnicode(":family_man_woman_girl_boy:Группы пользователей");
+    private static final String ALL_USERS = EmojiParser.parseToUnicode(":man_technologist:Все пользователи");
+    private static final String APPOINT_AN_ADMIN = EmojiParser.parseToUnicode(":game_die:Назначить администратора");
+    private static final String ADD_USER_TO_GROUP = EmojiParser.parseToUnicode(":man_technologist:Добавить пользователя в группу");
+    private static final String DELETE_USER_FROM_GROUP = EmojiParser.parseToUnicode(":x:Удалить пользователя из группы");
+    private static final String READ_USERS_FROM_GROUP = EmojiParser.parseToUnicode(":eyes:Показать пользователей");
+    private static final String CREATE_GROUP = EmojiParser.parseToUnicode(":new:Создать группу");
+    private static final String EDIT_GROUP_NAME = EmojiParser.parseToUnicode(":gear:Изменить группу");
+    private static final String DELETE_GROUP = EmojiParser.parseToUnicode(":x:Удалить группу");
+    private static final String CREATE_TEMPLATE = EmojiParser.parseToUnicode(":envelope:Шаблоны сообщений");
+    private static final String MESSAGE_HISTORY = EmojiParser.parseToUnicode(":scroll:История сообщений");
+    private static final String SEND_MESSAGE = EmojiParser.parseToUnicode(":envelope_with_arrow:Отправить сообщение");
+    private static final String CREATE_MESSAGE = EmojiParser.parseToUnicode(":new:Новое сообщение");
+    private static final String USE_TEMPLATE_MESSAGE = EmojiParser.parseToUnicode(":envelope:Использовать шаблон");
+    private static final String BACK_TO_MAIN_MENU = EmojiParser.parseToUnicode(":back:В главное меню");
 
     private static final String SILENCE_MODE = "SILENCE_MODE";
     private static final String READ_USER_BUTTON = "READ_USER_BUTTON";
@@ -191,18 +191,18 @@ public class TelegramBot extends TelegramLongPollingBot {
         String messageText = update.getMessage().getText();
         long chatId = update.getMessage().getChatId();
 
-        switch (messageText) {
-            case START_CMD -> {
-                startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                registerUser(update.getMessage());
-            }
-            case SET_SILENCE_MODE -> setSilenceModeCommandReceived(chatId);
-            case READ_MY_DATA -> readUserData(chatId, chatId);
-            case DELETE_MY_DATA -> {
-                deleteUserData(chatId);
-                sendMessage(chatId, DATA_IS_DELETED);
-            }
-            default -> sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
+        if (messageText.equals(START_CMD)) {
+            startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+            registerUser(update.getMessage());
+        } else if (messageText.equals(SET_SILENCE_MODE)) {
+            setSilenceModeCommandReceived(chatId);
+        } else if (messageText.equals(READ_MY_DATA)) {
+            readUserData(chatId, chatId);
+        } else if (messageText.equals(DELETE_MY_DATA)) {
+            deleteUserData(chatId);
+            sendMessage(chatId, DATA_IS_DELETED);
+        } else {
+            sendMessage(chatId, COMMAND_NOT_RECOGNIZED);
         }
     }
 
