@@ -228,15 +228,21 @@ public class TelegramBot extends TelegramLongPollingBot {
             sendMessage(chatId, CREATE_TEMPLATE_INFO);
         } else if (messageText.contains(CREATE_GROUP_CMD)) {
             String groupName = parseTextFromMessage(messageText);
-            String resultMessage = createGroup(groupName) ? STR.":heavy_check_mark: Группа \{groupName} создана!" : THIS_NAME_ALREADY_EXISTS;
+            String resultMessage = createGroup(groupName)
+                    ? STR.":heavy_check_mark: Группа \{groupName} создана!"
+                    : THIS_NAME_ALREADY_EXISTS;
             sendMessage(chatId, resultMessage);
         } else if (messageText.contains(CREATE_TEMPLATE_CMD)) {
             String templateMessage = parseTextFromMessage(messageText);
-            String resultMessage = createTemplateMessage(templateMessage) ? TEMPLATE_CREATED : TEMPLATE_WAS_NOT_CREATED;
+            String resultMessage = createTemplateMessage(templateMessage)
+                    ? TEMPLATE_CREATED
+                    : TEMPLATE_WAS_NOT_CREATED;
             sendMessage(chatId, resultMessage);
         } else if (messageText.contains(CHANGE_GROUP_NAME_CMD)) {
             String newGroupName = parseTextFromMessage(messageText);
-            String result = changeGroupName(newGroupName) ? CHANGED_SUCCESSFULLY + newGroupName : THIS_NAME_ALREADY_EXISTS;
+            String result = changeGroupName(newGroupName)
+                    ? CHANGED_SUCCESSFULLY + newGroupName
+                    : THIS_NAME_ALREADY_EXISTS;
             sendMessage(chatId, result);
         } else if (messageText.contains(SEND_CMD)) {
             messageForSending = parseTextFromMessage(messageText);
@@ -279,8 +285,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         LocalTime currentTime = LocalTime.now();
         if (startTime == null || endTime == null) {
             return false;
-        }
-        if (startTime.isBefore(endTime)) {
+        } else if (startTime.isBefore(endTime)) {
             return currentTime.isAfter(startTime) && currentTime.isBefore(endTime);
         } else {
             return currentTime.isAfter(startTime) || currentTime.isBefore(endTime);
@@ -588,7 +593,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void registerUser(final Message message) {
-        if (!userRepository.existsById(message.getChatId()) || adminRepository.existsById(message.getChatId())) {
+        if (!userRepository.existsById(message.getChatId()) && !adminRepository.existsById(message.getChatId())) {
             var chat = message.getChat();
 
             User user = new User();
@@ -678,15 +683,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         var keyboardRows = new ArrayList<KeyboardRow>();
         var row = new KeyboardRow();
 
-        row.add(CREATE_TEMPLATE);
-        row.add(SEND_MESSAGE);
-        row.add(MESSAGE_HISTORY);
+        row.addAll(List.of(CREATE_TEMPLATE, SEND_MESSAGE, MESSAGE_HISTORY));
         keyboardRows.add(row);
 
         row = new KeyboardRow();
-        row.add(ALL_USERS);
-        row.add(USER_GROUPS);
-        row.add(APPOINT_AN_ADMIN);
+        row.addAll(List.of(ALL_USERS, USER_GROUPS, APPOINT_AN_ADMIN));
         keyboardRows.add(row);
 
         keyboardMarkup.setKeyboard(keyboardRows);
@@ -699,15 +700,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         var keyboardRows = new ArrayList<KeyboardRow>();
         var row = new KeyboardRow();
 
-        row.add(CREATE_GROUP);
-        row.add(EDIT_GROUP_NAME);
-        row.add(DELETE_GROUP);
+        row.addAll(List.of(CREATE_GROUP, EDIT_GROUP_NAME, DELETE_GROUP));
         keyboardRows.add(row);
 
         row = new KeyboardRow();
-        row.add(ADD_USER_TO_GROUP);
-        row.add(READ_USERS_FROM_GROUP);
-        row.add(DELETE_USER_FROM_GROUP);
+        row.addAll(List.of(ADD_USER_TO_GROUP, READ_USERS_FROM_GROUP, DELETE_USER_FROM_GROUP));
         keyboardRows.add(row);
 
         row = new KeyboardRow();
